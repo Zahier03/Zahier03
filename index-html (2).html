@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Visual Script Editor for Google Apps Script</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+    }
+    
+    /* Main layout */
+    .container {
+      display: grid;
+      grid-template-columns: 250px 1fr 300px;
+      grid-template-rows: 40px 1fr 200px;
+      height: 100vh;
+    }
+    
+    /* Header */
+    .header {
+      grid-column: 1 / 4;
+      grid-row: 1;
+      background-color: #2c3e50;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      margin: 0;
+      flex-grow: 1;
+    }
+    
+    .header-buttons {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .header-buttons button {
+      background-color: #3498db;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .header-buttons button:hover {
+      background-color: #2980b9;
+    }
+    
+    /* Library panel */
+    .library-panel {
+      grid-column: 1;
+      grid-row: 2;
+      background-color: #ecf0f1;
+      border-right: 1px solid #bdc3c7;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    
+    .library-section {
+      margin-bottom: 15px;
+    }
+    
+    .library-section h2 {
+      font-size: 16px;
+      margin: 0 0 5px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #bdc3c7;
+    }
+    
+    .library-item {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      padding: 8px;
+      margin-bottom: 5px;
+      border-radius: 3px;
+      cursor: grab;
+      transition: background-color 0.2s;
+    }
+    
+    .library-item:hover {
+      background-color: #f5f5f5;
+    }
+    
+    /* Canvas */
+    .canvas-container {
+      grid-column: 2;
+      grid-row: 2;
+      background-color: #fff;
+      position: relative;
+      overflow: auto;
+    }
+    
+    .canvas {
+      position: absolute;
+      width: 5000px;
+      height: 5000px;
+      background-image: linear-gradient(#f0f0f0 1px, transparent 1px),
+                        linear-gradient(90deg, #f0f0f0 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    
+    /* Properties panel */
+    .properties-panel {
+      grid-column: 3;
+      grid-row: 2;
+      background-color: #ecf0f1;
+      border-left: 1px solid #bdc3c7;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    
+    .properties-panel h2 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #bdc3c7;
+    }
+    
+    .property-row {
+      display: flex;
+      margin-bottom: 5px;
+      align-items: center;
+    }
+    
+    .property-label {
+      width: 100px;
+      font-size: 14px;
+    }
+    
+    .property-value {
+      flex-grow: 1;
+    }
+    
+    .property-value input, .property-value select {
+      width: 100%;
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+    
+    /* Code panel */
+    .code-panel {
+      grid-column: 1 / 4;
+      grid-row: 3;
+      background-color: #2c3e50;
+      color: white;
+      border-top: 1px solid #bdc3c7;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .code-header {
+      padding: 5px 10px;
+      background-color: #34495e;
+      display: flex;
+      align-items: center;
+    }
+    
+    .code-header h2 {
+      font-size: 14px;
+      margin: 0;
+      flex-grow: 1;
+    }
+    
+    .code-content {
+      flex-grow: 1;
+      overflow: auto;
+      padding: 10px;
+      font-family: monospace;
+      background-color: #1e272e;
+      color: #ecf0f1;
+    }
+    
+    /* Block styles */
+    .block {
+      position: absolute;
+      min-width: 150px;
+      background-color: #3498db;
+      border-radius: 5px;
+      padding: 10px;
+      color: white;
+      cursor: move;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1;
+      transition: box-shadow 0.2s;
+    }
+    
+    .block:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .block.selected {
+      box-shadow: 0 0 0 2px #f39c12, 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .block .block-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .block .block-type {
+      font-size: 10px;
+      opacity: 0.8;
+    }
+    
+    .block .block-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .block-param {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .block-param-label {
+      font-size: 12px;
+      flex: 1;
+    }
+    
+    .block-param-value {
+      flex: 2;
+    }
+    
+    .block input, .block select {
+      background-color: rgba(255,255,255,0.9);
+      border: none;
+      padding: 5px;
+      border-radius: 3px;
+      width: 100%;
+      color: #333;
+    }
+    
+    /* Container Blocks */
+    .block.container-block {
+      min-height: 100px;
+    }
+    
+    .block-container {
+      margin-top: 10px;
+      min-height: 50px;
+      background-color: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      padding: 5px;
+    }
+    
+    .else-container {
+      margin-top: 5px;
+      border-top: 1px dashed rgba(255,255,255,0.3);
+      padding-top: 5px;
+    }
+    
+    /* Block categories */
+    .block.variables-block { background-color: #9b59b6; }
+    .block.spreadsheet-block { background-color: #2ecc71; }
+    .block.ui-block { background-color: #e74c3c; }
+    .block.utilities-block { background-color: #f39c12; }
+    .block.display-block { background-color: #1abc9c; }
+    .block.flow-block { background-color: #3498db; }
+    .block.logic-block { background-color: #e67e22; }
+    .block.math-block { background-color: #95a5a6; }
+    
+    /* Block connectors - puzzle style */
+    .block-connector {
+      position: absolute;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .input-connector {
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 10px;
+      border-radius: 10px 10px 0 0;
+      background-color: orange;
+    }
+    
+    .output-connector {
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 10px;
+      border-radius: 0 0 10px 10px;
+      background-color: orange;
+    }
+    
+    .input-connector.puzzle-in {
+      background-color: orange;
+    }
+    
+    .output-connector.puzzle-out {
+      background-color: orange;
+    }
+    
+    .block-connector:hover {
+      background-color: #ffcc00;
+    }
+    
+    .block-connector.connecting {
+      background-color: #ffcc00;
+      box-shadow: 0 0 5px #ffcc00;
+    }
+    
+    /* Connection styling */
+    .connection-svg path {
+      cursor: pointer;
+      transition: stroke-width 0.2s;
+    }
+    
+    .connection-svg path:hover {
+      stroke-width: 3;
+      stroke: #ffcc00;
+    }
+    
+    /* Context menu */
+    .context-menu {
+      position: absolute;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      min-width: 150px;
+    }
+    
+    .context-menu-item {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    
+    .context-menu-item:hover {
+      background-color: #f0f0f0;
+    }
+    
+    /* Highlighted connector */
+    .block-connector.highlight {
+      background-color: #ffcc00;
+      box-shadow: 0 0 5px #ffcc00;
+    }
+    
+    /* HTML Component styles */
+    .html-component {
+      position: absolute;
+      background-color: white;
+      border: 1px solid #ddd;
+      min-width: 50px;
+      min-height: 20px;
+      z-index: 1;
+      cursor: move;
+    }
+    
+    /* Fix z-index layering for proper display */
+    .block {
+      z-index: 10;
+    }
+    
+    .html-component {
+      z-index: 5;
+    }
+    
+    .connection-svg {
+      z-index: 3;
+    }
+    
+    .block-container {
+      z-index: 2;
+    }
+    
+    /* Tabs */
+    .tab-container {
+      padding: 5px;
+    }
+    
+    .tab-buttons {
+      display: flex;
+      border-bottom: 1px solid #bdc3c7;
+    }
+    
+    .tab-button {
+      padding: 5px 10px;
+      margin-right: 5px;
+      background-color: #ecf0f1;
+      border: 1px solid #bdc3c7;
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+    }
+    
+    .tab-button.active {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+      padding: 10px;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Resizable components */
+    .ui-resizable-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: #3498db;
+      border: 1px solid white;
+    }
+    
+    .ui-resizable-se {
+      bottom: -4px;
+      right: -4px;
+      cursor: se-resize;
+    }
+    
+    /* Color picker */
+    .color-preview {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ddd;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Visual Script Editor for Google Apps Script</h1>
+      <div class="header-buttons">
+        <button id="newProjectBtn"><i class="fas fa-file"></i> New</button>
+        <button id="saveBtn"><i class="fas fa-save"></i> Save</button>
+        <button id="exportBtn"><i class="fas fa-file-export"></i> Export Code</button>
+        <button id="runBtn"><i class="fas fa-play"></i> Run</button>
+      </div>
+    </div>
+    
+    <!-- Library Panel -->
+    <div class="library-panel">
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <div class="tab-button active" data-tab="blocksTab">Blocks</div>
+          <div class="tab-button" data-tab="htmlTab">HTML</div>
+        </div>
+        
+        <div id="blocksTab" class="tab-content active">
+          <div class="library-section">
+            <h2>Spreadsheet</h2>
+            <div class="library-items" id="spreadsheetItems">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+          
+          <div class="library-section">
+            <h2>UI</h2>
+            <div class="library-items" id="uiItems">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+          
+          <div class="library-section">
+            <h2>Control Flow</h2>
+            <div class="library-items" id="flowItems">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+          
+          <div class="library-section">
+            <h2>Utilities</h2>
+            <div class="library-items" id="utilsItems">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+        
+        <div id="htmlTab" class="tab-content">
+          <div class="library-section">
+            <h2>UI Components</h2>
+            <div class="library-items" id="htmlComponents">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Canvas -->
+    <div class="canvas-container">
+      <div class="canvas" id="canvas"></div>
+    </div>
+    
+    <!-- Properties Panel -->
+    <div class="properties-panel">
+      <h2>Properties</h2>
+      <div id="propertiesContent">
+        <p>Select a block or component to edit its properties.</p>
+      </div>
+    </div>
+    
+    <!-- Code Panel -->
+    <div class="code-panel">
+      <div class="code-header">
+        <h2>Generated Code</h2>
+        <button id="refreshCodeBtn"><i class="fas fa-sync"></i> Refresh</button>
+        <button id="copyCodeBtn"><i class="fas fa-copy"></i> Copy</button>
+      </div>
+      <div class="code-content" id="codeContent">
+        // Generated code will appear here
+      </div>
+    </div>
+  </div>
+  
+  <!-- JavaScript libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+  
+  <script>
+    // Global variables
+    let blocks = [];
+    let connections = [];
+    let htmlComponents = [];
+    let selectedElement = null;
+    let isDraggingConnection = false;
+    let tempConnection = null;
+    let startConnector = null;
+    let availableFunctions = {};
+    let availableHtmlComponents = [];
+    
+    // Main initialization function
+    function initializeEditor() {
+      // Fetch available functions from server
+      google.script.run.withSuccessHandler(function(data) {
+        availableFunctions = data;
+        populateBlockLibrary();
+      }).getAvailableFunctions();
+      
+      // Fetch available HTML components
+      google.script.run.withSuccessHandler(function(data) {
+        availableHtmlComponents = data;
+        populateHtmlComponentLibrary();
+      }).getHtmlComponents();
+      
+      // Set up the canvas for dragging and connections
+      setupCanvas();
+      
+      // Set up tab switching
+      setupTabs();
+      
+      // Set up button handlers
+      setupButtons();
+    }
+    
+    // Populate the block library with available functions
+    function populateBlockLibrary() {
+      // Clear existing items
+      $('#spreadsheetItems, #uiItems, #flowItems, #utilsItems').empty();
+      
+      // Add items for each category
+      for (let category in availableFunctions) {
+        const items = availableFunctions[category].functions;
+        const categoryId = category + 'Items';
+        
+        items.forEach(function(item) {
+          const $item = $('<div class="library-item" data-category="' + category + '" data-name="' + item.name + '">' + 
+                         item.name + '</div>');
+          $('#' + categoryId).append($item);
+        });
+      }
+      
+      // Make library items draggable
+      $('.library-item').draggable({
+        helper: 'clone',
+        appendTo: 'body',
+        start: function(event, ui) {
+          $(ui.helper).css('z-index', '1000');
+        }
+      });
+    }
+    
+    // Populate the HTML component library
+    function populateHtmlComponentLibrary() {
+      // Clear existing items
+      $('#htmlComponents').empty();
+      
+      // Add items for each HTML component
+      availableHtmlComponents.forEach(function(component) {
+        const $item = $('<div class="library-item" data-type="html" data-component="' + component.type + '">' + 
+                       component.name + '</div>');
+        $('#htmlComponents').append($item);
+      });
+      
+      // Make HTML components draggable
+      $('#htmlComponents .library-item').draggable({
+        helper: 'clone',
+        appendTo: 'body',
+        start: function(event, ui) {
+          $(ui.helper).css('z-index', '1000');
+        }
+      });
+    }
+    
+    // Set up the canvas for handling drops and interactions
+    function setupCanvas() {
+      const $canvas = $('#canvas');
+      
+      // Add output area to the canvas
+      const $outputArea = $('<div class="output-area">' +
+        '<div class="output-header">Output <span class="clear-output" title="Clear output">×</span></div>' +
+        '<div class="output-content" id="outputContent"></div>' +
+        '</div>');
+      $canvas.append($outputArea);
+      
+      // Handle clear output button
+      $('.clear-output').on('click', function() {
+        $('#outputContent').empty();
+      });
+      
+      // Make the canvas a drop target for blocks
+      $canvas.droppable({
+        accept: '.library-item',
+        drop: function(event, ui) {
+          const offset = $canvas.offset();
+          const x = ui.offset.left - offset.left;
+          const y = ui.offset.top - offset.top;
+          
+          // Check if this is an HTML component or a code block
+          if ($(ui.helper).data('type') === 'html') {
+            createHtmlComponent($(ui.helper).data('component'), x, y);
+          } else {
+            const category = $(ui.helper).data('category');
+            const name = $(ui.helper).data('name');
+            const newBlock = createBlock(category, name, x, y);
+            
+            // Immediately select the new block to show its properties
+            if (newBlock) {
+              selectElement(newBlock);
+            }
+          }
+        }
+      });
+      
+      // Handle canvas panning (middle mouse button or Alt+drag)
+      let isPanning = false;
+      let startPanX, startPanY, startScrollX, startScrollY;
+      
+      $canvas.parent().on('mousedown', function(e) {
+        if (e.which === 2 || (e.which === 1 && e.altKey)) { // Middle mouse button or Alt+left button
+          isPanning = true;
+          startPanX = e.pageX;
+          startPanY = e.pageY;
+          startScrollX = $(this).scrollLeft();
+          startScrollY = $(this).scrollTop();
+          e.preventDefault();
+          $canvas.css('cursor', 'grabbing');
+        }
+      });
+      
+      $(document).on('mousemove', function(e) {
+        if (isPanning) {
+          const $container = $canvas.parent();
+          $container.scrollLeft(startScrollX - (e.pageX - startPanX));
+          $container.scrollTop(startScrollY - (e.pageY - startPanY));
+        }
+      });
+      
+      $(document).on('mouseup', function() {
+        if (isPanning) {
+          isPanning = false;
+          $canvas.css('cursor', 'default');
+        }
+      });
+      
+      // Add zoom control
+      $canvas.parent().on('wheel', function(e) {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          
+          const currentZoom = parseFloat($canvas.css('transform').split(',')[3]) || 1;
+          let newZoom = currentZoom;
+          
+          if (e.originalEvent.deltaY < 0) {
+            // Zoom in
+            newZoom = Math.min(currentZoom + 0.1, 2);
+          } else {
+            // Zoom out
+            newZoom = Math.max(currentZoom - 0.1, 0.5);
+          }
+          
+          $canvas.css('transform', 'scale(' + newZoom + ')');
+          $canvas.css('transform-origin', 'top left');
+        }
+      });
+      
+      // Double click to create a variable block
+      $canvas.on('dblclick', function(e) {
+        if ($(e.target).is('#canvas')) {
+          const offset = $canvas.offset();
+          const x = e.pageX - offset.left;
+          const y = e.pageY - offset.top;
+          
+          // Create a variable declaration block
+          const newBlock = createBlock('variables', 'declareVariable', x, y);
+          if (newBlock) {
+            selectElement(newBlock);
+          }
+        }
+      });
+    }
+    
+    // Show value picker for an input field
+    function showValuePicker($inputField) {
+      // Remove existing value pickers
+      $('.value-picker').remove();
+      
+      // Create value picker
+      const $picker = $('<div class="value-picker"></div>');
+      $picker.append('<div class="value-picker-header">Choose a value</div>');
+      
+      // Variables section
+      const $variablesSection = $('<div class="value-picker-section"></div>');
+      $variablesSection.append('<h3>Variables</h3>');
+      
+      // Get all declared variables
+      const variables = [];
+      blocks.forEach(function(block) {
+        if (block.type === 'variables.declareVariable' && block.params && block.params.name) {
+          variables.push(block.params.name);
+        }
+      });
+      
+      if (variables.length > 0) {
+        variables.forEach(function(variable) {
+          const $item = $('<div class="value-picker-item">' + variable + '</div>');
+          $item.on('click', function() {
+            $inputField.val(variable);
+            $inputField.trigger('change');
+            $picker.remove();
+          });
+          $variablesSection.append($item);
+        });
+      } else {
+        $variablesSection.append('<div>No variables defined</div>');
+      }
+      
+      $picker.append($variablesSection);
+      
+      // Constants section
+      const $constantsSection = $('<div class="value-picker-section"></div>');
+      $constantsSection.append('<h3>Constants</h3>');
+      
+      const constants = [
+        { name: '0', value: '0' },
+        { name: '1', value: '1' },
+        { name: '10', value: '10' },
+        { name: '100', value: '100' },
+        { name: 'true', value: 'true' },
+        { name: 'false', value: 'false' },
+        { name: 'empty string', value: '""' },
+        { name: 'empty array', value: '[]' },
+        { name: 'empty object', value: '{}' }
+      ];
+      
+      constants.forEach(function(constant) {
+        const $item = $('<div class="value-picker-item">' + constant.name + '</div>');
+        $item.on('click', function() {
+          $inputField.val(constant.value);
+          $inputField.trigger('change');
+          $picker.remove();
+        });
+        $constantsSection.append($item);
+      });
+      
+      $picker.append($constantsSection);
+      
+      // Calculate position and append to body
+      const inputPos = $inputField.offset();
+      $picker.css({
+        top: inputPos.top + $inputField.outerHeight() + 'px',
+        left: inputPos.left + 'px'
+      });
+      
+      $('body').append($picker);
+      
+      // Close picker when clicking outside
+      $(document).one('click', function(e) {
+        if (!$(e.target).closest('.value-picker, .value-picker-btn').length) {
+          $picker.remove();
+        }
+      });
+    }
+    
+    // Set up tab switching
+    function setupTabs() {
+      $('.tab-button').click(function() {
+        const tabId = $(this).data('tab');
+        
+        // Deactivate all tabs
+        $('.tab-button').removeClass('active');
+        $('.tab-content').removeClass('active');
+        
+        // Activate selected tab
+        $(this).addClass('active');
+        $('#' + tabId).addClass('active');
+      });
+    }
+    
+    // Set up button handlers
+    function setupButtons() {
+      // New project button
+      $('#newProjectBtn').click(function() {
+        if (confirm('Create a new project? All unsaved changes will be lost.')) {
+          blocks = [];
+          connections = [];
+          htmlComponents = [];
+          $('#canvas').empty();
+          refreshCode();
+        }
+      });
+      
+      // Save button
+      $('#saveBtn').click(function() {
+        saveProject();
+      });
+      
+      // Export code button
+      $('#exportBtn').click(function() {
+        exportCode();
+      });
+      
+      // Run button
+      $('#runBtn').click(function() {
+        alert('Run functionality would execute the script in the Apps Script environment.');
+      });
+      
+      // Refresh code button
+      $('#refreshCodeBtn').click(function() {
+        refreshCode();
+      });
+      
+      // Copy code button
+      $('#copyCodeBtn').click(function() {
+        const code = $('#codeContent').text();
+        navigator.clipboard.writeText(code).then(function() {
+          alert('Code copied to clipboard!');
+        });
+      });
+      
+      // Run button
+      $('#runBtn').click(function() {
+        // Clear output
+        $('#outputContent').empty();
+        
+        // Get the code
+        const code = $('#codeContent').text();
+        
+        // Create a function to handle logging output
+        let outputElement = document.getElementById('outputContent');
+        
+        // Create a wrapper function that captures console.log
+        const originalConsoleLog = console.log;
+        console.log = function() {
+          // Call the original console.log
+          originalConsoleLog.apply(console, arguments);
+          
+          // Format the arguments
+          const message = Array.from(arguments).map(arg => {
+            if (typeof arg === 'object') {
+              try {
+                return JSON.stringify(arg);
+              } catch (e) {
+                return arg.toString();
+              }
+            }
+            return arg;
+          }).join(' ');
+          
+          // Add to output element
+          if (outputElement) {
+            outputElement.innerHTML += '<div>' + message + '</div>';
+          }
+        };
+        
+        try {
+          // Create a "run environment" with simulated Apps Script objects
+          const SpreadsheetApp = {
+            getUi: function() {
+              return {
+                alert: function(title, message, buttonSet) {
+                  message = message || '';
+                  if (outputElement) {
+                    outputElement.innerHTML += '<div style="background-color: #f8f9fa; padding: 5px; margin: 5px 0; border-radius: 3px;">' +
+                      '<strong>' + title + '</strong><br>' + message + '</div>';
+                  }
+                  return {Button: {YES: 1}};
+                },
+                prompt: function(message, title) {
+                  if (outputElement) {
+                    const userInput = prompt(message, '');
+                    outputElement.innerHTML += '<div style="background-color: #f8f9fa; padding: 5px; margin: 5px 0; border-radius: 3px;">' +
+                      '<strong>Prompt: ' + title + '</strong><br>' + message + '<br>User answered: ' + userInput + '</div>';
+                  }
+                  return '';
+                },
+                ButtonSet: {
+                  YES_NO: 1,
+                  YES_NO_CANCEL: 2,
+                  OK: 3,
+                  OK_CANCEL: 4
+                },
+                Button: {
+                  YES: 1,
+                  NO: 2,
+                  CANCEL: 3,
+                  OK: 4,
+                  CLOSE: 5
+                }
+              };
+            },
+            getActiveSpreadsheet: function() {
+              return {
+                getActiveSheet: function() {
+                  return {
+                    getRange: function(row, col, numRows, numCols) {
+                      return {
+                        getValue: function() { return 'Cell Value'; },
+                        setValue: function(value) { console.log('Set cell value to: ' + value); },
+                        getValues: function() { return [['A1', 'B1'], ['A2', 'B2']]; },
+                        setValues: function(values) { console.log('Set values: ' + JSON.stringify(values)); }
+                      };
+                    },
+                    getDataRange: function() {
+                      return this.getRange(1, 1, 10, 10);
+                    }
+                  };
+                }
+              };
+            }
+          };
+          
+          const HtmlService = {
+            createHtmlOutput: function(html) {
+              if (outputElement) {
+                outputElement.innerHTML += '<div style="background-color: #e8f4ff; padding: 5px; margin: 5px 0; border-radius: 3px;">' +
+                  '<strong>HTML Output:</strong><br>' + html + '</div>';
+              }
+              return {
+                setTitle: function() { return this; },
+                setWidth: function() { return this; },
+                setHeight: function() { return this; }
+              };
+            }
+          };
+          
+          const Utilities = {
+            sleep: function(ms) {
+              console.log('Sleeping for ' + ms + 'ms (simulated)');
+            },
+            formatDate: function(date, timezone, format) {
+              return new Date(date).toLocaleString();
+            }
+          };
+          
+          // Create a sandbox where the code will run
+          const sandbox = new Function('SpreadsheetApp', 'HtmlService', 'Utilities', 'console', 'outputElement', code);
+          
+          // Run the code
+          sandbox(SpreadsheetApp, HtmlService, Utilities, console, outputElement);
+          
+          // Reset console.log
+          console.log = originalConsoleLog;
+          
+        } catch (error) {
+          // Handle errors
+          if (outputElement) {
+            outputElement.innerHTML += '<div style="color: red; font-weight: bold;">Error: ' + error.message + '</div>';
+          }
+          console.error('Runtime error:', error);
+          
+          // Reset console.log
+          console.log = originalConsoleLog;
+        }
+      });
+    }
+    
+    // Create a new block on the canvas
+    function createBlock(category, name, x, y) {
+      const blockId = 'block_' + new Date().getTime();
+      const blockType = category + '.' + name;
+      
+      // Find the function definition
+      const funcDef = availableFunctions[category].functions.find(f => f.name === name);
+      if (!funcDef) return null;
+      
+      // Create block HTML
+      const $block = $('<div class="block ' + category + '-block" id="' + blockId + '" data-type="' + blockType + '"></div>');
+      $block.css({
+        'left': x + 'px',
+        'top': y + 'px'
+      });
+      
+      // Check if this is a container block (like if, for, etc.)
+      if (funcDef.isContainer) {
+        $block.addClass('container-block');
+      }
+      
+      // For operator blocks with symbols, use the symbol in the header
+      let displayName = name;
+      if (funcDef.symbol) {
+        displayName = funcDef.symbol;
+      }
+      
+      // Block header
+      const $header = $('<div class="block-header"></div>');
+      $header.append('<span>' + displayName + '</span>');
+      $header.append('<span class="block-type">' + category + '</span>');
+      $block.append($header);
+      
+      // Block content with parameter inputs
+      const $content = $('<div class="block-content"></div>');
+      
+      // Add parameter inputs
+      if (funcDef.params && funcDef.params.length > 0) {
+        funcDef.params.forEach(function(param) {
+          const $paramRow = $('<div class="block-param"></div>');
+          $paramRow.append('<div class="block-param-label">' + param + ':</div>');
+          
+          const $paramValueContainer = $('<div class="block-param-value"></div>');
+          
+          // Special handling for different parameter types
+          if (param === 'condition') {
+            // Condition dropdown for if/while blocks
+            const $select = $('<select data-param="' + param + '"></select>');
+            $select.append('<option value="true">true</option>');
+            $select.append('<option value="false">false</option>');
+            $select.append('<option value="value === 0">value === 0</option>');
+            $select.append('<option value="value > 0">value > 0</option>');
+            $select.append('<option value="value < 0">value < 0</option>');
+            $select.append('<option value="array.length > 0">array.length > 0</option>');
+            $paramValueContainer.append($select);
+          } else if (param === 'expression') {
+            // Expression input for calculate blocks
+            const $input = $('<input type="text" data-param="' + param + '" placeholder="e.g., 1 + 2 * 3">');
+            $paramValueContainer.append($input);
+          } else if (param === 'left' || param === 'right' || param === 'value') {
+            // Add value picker button for standard parameters
+            const $inputGroup = $('<div class="input-group"></div>');
+            const $input = $('<input type="text" data-param="' + param + '">');
+            const $pickerBtn = $('<button class="value-picker-btn" title="Pick a value">⋯</button>');
+            
+            $inputGroup.append($input);
+            $inputGroup.append($pickerBtn);
+            $paramValueContainer.append($inputGroup);
+            
+            // Set up value picker
+            $pickerBtn.on('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // Show value picker
+              showValuePicker($input);
+            });
+          } else {
+            // Standard text input for most parameters
+            $paramValueContainer.append('<input type="text" data-param="' + param + '">');
+          }
+          
+          $paramRow.append($paramValueContainer);
+          $content.append($paramRow);
+        });
+      }
+      
+      $block.append($content);
+      
+      // Add container for child blocks if this is a container block
+      if (funcDef.isContainer) {
+        const $container = $('<div class="block-container" data-container="main"></div>');
+        $block.append($container);
+        
+        // Add else container for if blocks
+        if (funcDef.hasElse) {
+          $block.append('<div class="else-label">else:</div>');
+          $block.append('<div class="block-container else-container" data-container="else"></div>');
+        }
+      }
+      
+      // Add appropriate connectors based on the function definition
+      if (funcDef.inputShape !== 'none') {
+        $block.append('<div class="block-connector input-connector ' + funcDef.inputShape + '" data-connector="input"></div>');
+      }
+      
+      if (funcDef.outputShape !== 'none') {
+        $block.append('<div class="block-connector output-connector ' + funcDef.outputShape + '" data-connector="output"></div>');
+      }
+      
+      // Add to canvas
+      $('#canvas').append($block);
+      
+      // Make block draggable
+      $block.draggable({
+        containment: 'parent',
+        handle: '.block-header',
+        drag: function() {
+          updateConnections();
+        },
+        stop: function() {
+          // Update block position in data structure
+          const blockIdx = blocks.findIndex(b => b.id === blockId);
+          if (blockIdx >= 0) {
+            blocks[blockIdx].x = parseInt($block.css('left'));
+            blocks[blockIdx].y = parseInt($block.css('top'));
+          }
+          updateConnections();
+        }
+      });
+      
+      // Make container droppable if this is a container block
+      if (funcDef.isContainer) {
+        $block.find('.block-container').droppable({
+          accept: '.block',
+          tolerance: 'pointer',
+          greedy: true, // Important to prevent event bubbling issues
+          hoverClass: 'drop-hover',
+          drop: function(event, ui) {
+            const $container = $(this);
+            const $droppedBlock = $(ui.draggable);
+            
+            // Don't allow dropping a block into itself or its children
+            if ($droppedBlock.attr('id') === blockId || $droppedBlock.find('#' + blockId).length > 0) {
+              return;
+            }
+            
+            // If the block is currently in another container, remove the containerId reference
+            const droppedBlockIdx = blocks.findIndex(b => b.id === $droppedBlock.attr('id'));
+            if (droppedBlockIdx >= 0 && blocks[droppedBlockIdx].containerId) {
+              const oldContainerId = blocks[droppedBlockIdx].containerId;
+              const oldContainerType = blocks[droppedBlockIdx].containerType;
+              
+              // Find the block that owns this container
+              const containerBlockIdx = blocks.findIndex(b => b.id === oldContainerId);
+              if (containerBlockIdx >= 0) {
+                // Remove the child reference
+                if (blocks[containerBlockIdx].childBlocks) {
+                  blocks[containerBlockIdx].childBlocks = blocks[containerBlockIdx].childBlocks.filter(
+                    id => id !== $droppedBlock.attr('id')
+                  );
+                }
+                if (oldContainerType === 'else' && blocks[containerBlockIdx].elseBlocks) {
+                  blocks[containerBlockIdx].elseBlocks = blocks[containerBlockIdx].elseBlocks.filter(
+                    id => id !== $droppedBlock.attr('id')
+                  );
+                }
+              }
+            }
+            
+            // Position the block relative to the container
+            const containerOffset = $container.offset();
+            const blockOffset = $droppedBlock.offset();
+            const relativeX = blockOffset.left - containerOffset.left + 5;
+            const relativeY = blockOffset.top - containerOffset.top + 5;
+            
+            // Move the block into the container
+            $droppedBlock.detach().css({
+              'left': relativeX + 'px',
+              'top': relativeY + 'px',
+              'position': 'absolute'
+            }).appendTo($container);
+            
+            // Update block data
+            const blockIdx = blocks.findIndex(b => b.id === $droppedBlock.attr('id'));
+            if (blockIdx >= 0) {
+              blocks[blockIdx].containerId = $block.attr('id');
+              blocks[blockIdx].containerType = $container.data('container');
+            }
+            
+            // Update parent block's childBlocks or elseBlocks array
+            const parentBlockIdx = blocks.findIndex(b => b.id === blockId);
+            if (parentBlockIdx >= 0) {
+              const containerType = $container.data('container');
+              if (containerType === 'main') {
+                if (!blocks[parentBlockIdx].childBlocks) {
+                  blocks[parentBlockIdx].childBlocks = [];
+                }
+                if (!blocks[parentBlockIdx].childBlocks.includes($droppedBlock.attr('id'))) {
+                  blocks[parentBlockIdx].childBlocks.push($droppedBlock.attr('id'));
+                }
+              } else if (containerType === 'else') {
+                if (!blocks[parentBlockIdx].elseBlocks) {
+                  blocks[parentBlockIdx].elseBlocks = [];
+                }
+                if (!blocks[parentBlockIdx].elseBlocks.includes($droppedBlock.attr('id'))) {
+                  blocks[parentBlockIdx].elseBlocks.push($droppedBlock.attr('id'));
+                }
+              }
+            }
+            
+            updateConnections();
+            refreshCode(); // Update code generation when blocks are moved
+          }
+        });
+      }
+      
+      // Add visual feedback for droppable areas
+      if (funcDef.isContainer) {
+        $block.find('.block-container').on({
+          'dragover': function(e) {
+            $(this).addClass('dragover');
+          },
+          'dragleave': function(e) {
+            $(this).removeClass('dragover');
+          },
+          'drop': function(e) {
+            $(this).removeClass('dragover');
+          }
+        });
+      }
+      
+      // Store block data
+      const blockData = {
+        id: blockId,
+        type: blockType,
+        x: x,
+        y: y,
+        params: {},
+        variableName: funcDef.returnValue ? generateVariableName(name) : undefined,
+        inputConnected: false,
+        outputConnected: false,
+        connections: []
+      };
+      
+      blocks.push(blockData);
+      
+      // Set up block interactions
+      setupBlockInteractions($block);
+      
+      // Return the created block
+      return $block;
+    }
+    
+    // Generate a variable name based on the block type
+    function generateVariableName(blockName) {
+      // Camel case the block name
+      const camelCased = blockName.replace(/(?:^\w|[A-Z]|\b\w)/g, function(letter, index) {
+        return index === 0 ? letter.toLowerCase() : letter.toUpperCase();
+      }).replace(/\s+/g, '');
+      
+      // Add a unique number suffix
+      return camelCased + new Date().getTime() % 1000;
+    }
+    
+    // Create an HTML component on the canvas
+    function createHtmlComponent(componentType, x, y) {
+      const componentId = 'component_' + new Date().getTime();
+      
+      // Find the component definition
+      const compDef = availableHtmlComponents.find(c => c.type === componentType);
+      
+      if (!compDef) return;
+      
+      // Create the HTML component
+      let $component;
+      
+      switch (componentType) {
+        case 'div':
+          $component = $('<div class="html-component" id="' + componentId + '" data-type="' + componentType + '"></div>');
+          $component.text('Container');
+          break;
+        case 'button':
+          $component = $('<button class="html-component" id="' + componentId + '" data-type="' + componentType + '">Click Me</button>');
+          break;
+        case 'input':
+          $component = $('<input type="text" class="html-component" id="' + componentId + '" data-type="' + componentType + '" placeholder="Enter text...">');
+          break;
+        case 'select':
+          $component = $('<select class="html-component" id="' + componentId + '" data-type="' + componentType + '"></select>');
+          for (let i = 1; i <= 3; i++) {
+            $component.append('<option>Option ' + i + '</option>');
+          }
+          break;
+        case 'table':
+          $component = $('<table class="html-component" id="' + componentId + '" data-type="' + componentType + '"></table>');
+          for (let i = 0; i < 3; i++) {
+            const $row = $('<tr></tr>');
+            for (let j = 0; j < 3; j++) {
+              $row.append('<td>Cell</td>');
+            }
+            $component.append($row);
+          }
+          break;
+        case 'label':
+          $component = $('<label class="html-component" id="' + componentId + '" data-type="' + componentType + '">Text Label</label>');
+          break;
+        default:
+          $component = $('<div class="html-component" id="' + componentId + '" data-type="' + componentType + '"></div>');
+      }
+      
+      // Set position and apply default properties
+      $component.css({
+        'left': x + 'px',
+        'top': y + 'px'
+      });
+      
+      // Apply default styles from the component definition
+      if (compDef.properties) {
+        for (let prop in compDef.properties) {
+          $component.css(prop, compDef.properties[prop]);
+        }
+      }
+      
+      // Add to canvas
+      $('#canvas').append($component);
+      
+      // Make component draggable
+      $component.draggable({
+        containment: 'parent'
+      });
+      
+      // Make component resizable
+      $component.resizable({
+        handles: 'se',
+        minWidth: 50,
+        minHeight: 20
+      });
+      
+      // Store component data
+      htmlComponents.push({
+        id: componentId,
+        type: componentType,
+        x: x,
+        y: y,
+        properties: compDef.properties || {}
+      });
+      
+      // Set up component interactions
+      setupComponentInteractions($component);
+      
+      // Return the created component
+      return $component;
+    }
+    
+    // Set up interactions for blocks
+    function setupBlockInteractions($block) {
+      // Select block on click
+      $block.on('click', function(e) {
+        selectElement($(this));
+        e.stopPropagation();
+      });
+      
+      // Update parameters when inputs change
+      $block.find('input, select').on('change', function() {
+        const blockId = $block.attr('id');
+        const blockIdx = blocks.findIndex(b => b.id === blockId);
+        const param = $(this).data('param');
+        const value = $(this).val();
+        
+        if (blockIdx >= 0) {
+          blocks[blockIdx].params[param] = value;
+          refreshCode();
+        }
+      });
+      
+      // Handle connection drag/drop using puzzle-like mechanism
+      $block.find('.block-connector').on('mousedown', function(e) {
+        // Prevent dragging the block when starting a connection
+        e.stopPropagation();
+        
+        const $connector = $(this);
+        $connector.addClass('connecting');
+        
+        const connectorType = $connector.data('connector');
+        const blockId = $block.attr('id');
+        
+        // Calculate connector center position
+        const connectorPos = $connector.offset();
+        const connectorWidth = $connector.width();
+        const connectorHeight = $connector.height();
+        
+        startConnector = {
+          blockId: blockId,
+          type: connectorType,
+          element: $connector,
+          x: connectorPos.left + connectorWidth / 2,
+          y: connectorPos.top + (connectorType === 'input' ? 0 : connectorHeight)
+        };
+        
+        isDraggingConnection = true;
+      });
+      
+      // Handle connector mouseup for completing connections
+      $block.find('.block-connector').on('mouseup', function(e) {
+        if (isDraggingConnection && startConnector) {
+          const $endConnector = $(this);
+          const endConnectorType = $endConnector.data('connector');
+          const endBlockId = $block.attr('id');
+          
+          // Only connect if one is input and one is output
+          if (startConnector.type !== endConnectorType && startConnector.blockId !== endBlockId) {
+            // Determine source and target
+            let sourceId, targetId;
+            
+            if (startConnector.type === 'output') {
+              sourceId = startConnector.blockId;
+              targetId = endBlockId;
+            } else {
+              sourceId = endBlockId;
+              targetId = startConnector.blockId;
+            }
+            
+            // Create the connection
+            createConnection(sourceId, targetId);
+            
+            // Update code
+            refreshCode();
+          }
+          
+          // Reset connection state
+          isDraggingConnection = false;
+          if (startConnector.element) {
+            startConnector.element.removeClass('connecting');
+          }
+          startConnector = null;
+          
+          if (tempConnection) {
+            tempConnection.remove();
+            tempConnection = null;
+          }
+          
+          e.stopPropagation();
+        }
+      });
+      
+      // Add delete button to block header
+      const $deleteBtn = $('<span class="delete-block" title="Delete Block">×</span>');
+      $block.find('.block-header').append($deleteBtn);
+      
+      // Handle block deletion
+      $deleteBtn.on('click', function(e) {
+        e.stopPropagation();
+        
+        if (confirm('Delete this block?')) {
+          const blockId = $block.attr('id');
+          
+          // Remove connections involving this block
+          connections = connections.filter(conn => {
+            if (conn.source === blockId || conn.target === blockId) {
+              return false; // Remove this connection
+            }
+            return true; // Keep this connection
+          });
+          
+          // Remove the block from the data array
+          blocks = blocks.filter(b => b.id !== blockId);
+          
+          // Remove the block from the DOM
+          $block.remove();
+          
+          // Update connections
+          updateConnections();
+          
+          // Refresh code
+          refreshCode();
+        }
+      });
+    }
+    
+    // Create a connection between two blocks
+    function createConnection(sourceId, targetId) {
+      // Check if connection already exists
+      const existingConn = connections.find(conn => 
+        conn.source === sourceId && conn.target === targetId);
+      
+      if (existingConn) return; // Connection already exists
+      
+      // Check if target already has an input connection
+      const targetHasInput = connections.find(conn => conn.target === targetId);
+      if (targetHasInput) {
+        // If target already has input, remove the old connection
+        connections = connections.filter(conn => conn.target !== targetId);
+      }
+      
+      // Add the new connection
+      connections.push({
+        source: sourceId,
+        target: targetId
+      });
+      
+      // Update block data
+      const sourceIdx = blocks.findIndex(b => b.id === sourceId);
+      const targetIdx = blocks.findIndex(b => b.id === targetId);
+      
+      if (sourceIdx >= 0) {
+        blocks[sourceIdx].outputConnected = true;
+        blocks[sourceIdx].connections.push({
+          type: 'output',
+          blockId: targetId
+        });
+      }
+      
+      if (targetIdx >= 0) {
+        blocks[targetIdx].inputConnected = true;
+        blocks[targetIdx].sourceRef = blocks[sourceIdx]?.variableName;
+        blocks[targetIdx].connections.push({
+          type: 'input',
+          blockId: sourceId
+        });
+      }
+      
+      // Draw the connection
+      drawConnection(sourceId, targetId);
+    }
+    
+    // Set up interactions for HTML components
+    function setupComponentInteractions($component) {
+      // Select component on click
+      $component.on('click', function(e) {
+        selectElement($(this));
+        e.stopPropagation();
+      });
+    }
+    
+    // Handle selecting an element
+    function selectElement($element) {
+      // Deselect previous element
+      if (selectedElement) {
+        selectedElement.removeClass('selected');
+      }
+      
+      // Select new element
+      selectedElement = $element;
+      selectedElement.addClass('selected');
+      
+      // Show properties
+      if ($element.hasClass('block')) {
+        showBlockProperties($element);
+      } else if ($element.hasClass('html-component')) {
+        showComponentProperties($element);
+      }
+    }
+    
+    // Show properties for a selected block
+    function showBlockProperties($block) {
+      const blockId = $block.attr('id');
+      const blockType = $block.data('type');
+      const [category, name] = blockType.split('.');
+      
+      // Find the function definition
+      const funcDef = availableFunctions[category].functions.find(f => f.name === name);
+      
+      // Build properties form
+      let html = '<div class="property-row">' +
+                '<div class="property-label">Type:</div>' +
+                '<div class="property-value">' + blockType + '</div>' +
+                '</div>';
+      
+      html += '<div class="property-row">' +
+              '<div class="property-label">Description:</div>' +
+              '<div class="property-value">' + funcDef.description + '</div>' +
+              '</div>';
+      
+      // Parameters
+      if (funcDef.params && funcDef.params.length > 0) {
+        funcDef.params.forEach(function(param) {
+          const value = blocks.find(b => b.id === blockId)?.params[param] || '';
+          
+          html += '<div class="property-row">' +
+                  '<div class="property-label">' + param + ':</div>' +
+                  '<div class="property-value">' +
+                  '<input type="text" data-param="' + param + '" value="' + value + '">' +
+                  '</div></div>';
+        });
+      } else {
+        html += '<div>No configurable parameters</div>';
+      }
+      
+      // Set content
+      $('#propertiesContent').html(html);
+      
+      // Set up events
+      $('#propertiesContent input').on('change', function() {
+        const blockIdx = blocks.findIndex(b => b.id === blockId);
+        const param = $(this).data('param');
+        const value = $(this).val();
+        
+        if (blockIdx >= 0) {
+          blocks[blockIdx].params[param] = value;
+          $block.find('input[data-param="' + param + '"]').val(value);
+          refreshCode();
+        }
+      });
+    }
+    
+    // Show properties for a selected HTML component
+    function showComponentProperties($component) {
+      const componentId = $component.attr('id');
+      const componentType = $component.data('type');
+      
+      // Find the component data
+      const componentIdx = htmlComponents.findIndex(c => c.id === componentId);
+      const componentData = htmlComponents[componentIdx];
+      
+      if (!componentData) return;
+      
+      // Build properties form
+      let html = '<div class="property-row">' +
+                '<div class="property-label">Type:</div>' +
+                '<div class="property-value">' + componentType + '</div>' +
+                '</div>';
+      
+      // Common style properties
+      const styleProps = [
+        { name: 'width', label: 'Width', type: 'text' },
+        { name: 'height', label: 'Height', type: 'text' },
+        { name: 'backgroundColor', label: 'Background', type: 'color' },
+        { name: 'color', label: 'Text Color', type: 'color' },
+        { name: 'fontSize', label: 'Font Size', type: 'text' },
+        { name: 'padding', label: 'Padding', type: 'text' },
+        { name: 'borderRadius', label: 'Border Radius', type: 'text' }
+      ];
+      
+      styleProps.forEach(function(prop) {
+        const value = $component.css(prop.name);
+        
+        html += '<div class="property-row">' +
+                '<div class="property-label">' + prop.label + ':</div>' +
+                '<div class="property-value">';
+        
+        if (prop.type === 'color') {
+          html += '<input type="text" data-style="' + prop.name + '" value="' + value + '">' +
+                  '<div class="color-preview" style="background-color: ' + value + '"></div>';
+        } else {
+          html += '<input type="text" data-style="' + prop.name + '" value="' + value + '">';
+        }
+        
+        html += '</div></div>';
+      });
+      
+      // Component specific properties
+      if (componentType === 'button' || componentType === 'label') {
+        html += '<div class="property-row">' +
+                '<div class="property-label">Text:</div>' +
+                '<div class="property-value">' +
+                '<input type="text" data-prop="text" value="' + $component.text() + '">' +
+                '</div></div>';
+      } else if (componentType === 'input') {
+        html += '<div class="property-row">' +
+                '<div class="property-label">Placeholder:</div>' +
+                '<div class="property-value">' +
+                '<input type="text" data-prop="placeholder" value="' + $component.attr('placeholder') + '">' +
+                '</div></div>';
+      }
+      
+      // Set content
+      $('#propertiesContent').html(html);
+      
+      // Set up events for style properties
+      $('#propertiesContent input[data-style]').on('change', function() {
+        const propName = $(this).data('style');
+        const value = $(this).val();
+        
+        // Update component style
+        $component.css(propName, value);
+        
+        // Update color preview if needed
+        if (propName === 'backgroundColor' || propName === 'color') {
+          $(this).siblings('.color-preview').css('background-color', value);
+        }
+        
+        // Update component data
+        if (componentIdx >= 0) {
+          componentData.properties[propName] = value;
+        }
+      });
+      
+      // Set up events for component-specific properties
+      $('#propertiesContent input[data-prop]').on('change', function() {
+        const propName = $(this).data('prop');
+        const value = $(this).val();
+        
+        // Update component
+        if (propName === 'text') {
+          $component.text(value);
+        } else if (propName === 'placeholder') {
+          $component.attr('placeholder', value);
+        }
+        
+        // Update component data
+        if (componentIdx >= 0) {
+          componentData.properties[propName] = value;
+        }
+      });
+    }
+    
+    // Update connection lines between blocks
+    function updateConnections() {
+      $('.connection-line').remove();
+      
+      connections.forEach(function(conn) {
+        drawConnection(conn.source, conn.target);
+      });
+    }
+    
+    // Draw a connection line between two blocks
+    function drawConnection(sourceId, targetId) {
+      const $source = $('#' + sourceId);
+      const $target = $('#' + targetId);
+      
+      if ($source.length === 0 || $target.length === 0) return;
+      
+      const $canvas = $('#canvas');
+      const canvasOffset = $canvas.offset();
+      
+      const $sourceConnector = $source.find('.output-connector');
+      const $targetConnector = $target.find('.input-connector');
+      
+      if ($sourceConnector.length === 0 || $targetConnector.length === 0) return;
+      
+      // Get connector positions relative to canvas
+      const sourceConnectorOffset = $sourceConnector.offset();
+      const targetConnectorOffset = $targetConnector.offset();
+      
+      const sourceX = sourceConnectorOffset.left - canvasOffset.left + $sourceConnector.width() / 2;
+      const sourceY = sourceConnectorOffset.top - canvasOffset.top + $sourceConnector.height();
+      
+      const targetX = targetConnectorOffset.left - canvasOffset.left + $targetConnector.width() / 2;
+      const targetY = targetConnectorOffset.top - canvasOffset.top;
+      
+      // Create SVG path for a curved connection
+      const connectionId = 'conn_' + sourceId + '_' + targetId;
+      const existingConnection = $('#' + connectionId);
+      
+      if (existingConnection.length > 0) {
+        existingConnection.remove();
+      }
+      
+      // Calculate control points for curve
+      const dx = targetX - sourceX;
+      const dy = targetY - sourceY;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      
+      // Calculate curved path
+      const controlPointY = distance / 4;
+      
+      const $svg = $('<svg class="connection-svg" width="5000" height="5000" style="position: absolute; top: 0; left: 0; pointer-events: none;"></svg>');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      
+      $(path).attr({
+        id: connectionId,
+        d: `M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + controlPointY}, ${targetX} ${targetY - controlPointY}, ${targetX} ${targetY}`,
+        stroke: 'orange',
+        'stroke-width': 2,
+        fill: 'none'
+      });
+      
+      $svg.append(path);
+      $canvas.append($svg);
+      
+      // Add click handler to remove connection when clicked
+      $(path).on('click', function() {
+        if (confirm('Remove this connection?')) {
+          // Remove from connections array
+          connections = connections.filter(conn => !(conn.source === sourceId && conn.target === targetId));
+          
+          // Update block data
+          const sourceIdx = blocks.findIndex(b => b.id === sourceId);
+          const targetIdx = blocks.findIndex(b => b.id === targetId);
+          
+          if (sourceIdx >= 0) {
+            blocks[sourceIdx].connections = blocks[sourceIdx].connections.filter(conn => !(conn.type === 'output' && conn.blockId === targetId));
+            blocks[sourceIdx].outputConnected = blocks[sourceIdx].connections.some(conn => conn.type === 'output');
+          }
+          
+          if (targetIdx >= 0) {
+            blocks[targetIdx].connections = blocks[targetIdx].connections.filter(conn => !(conn.type === 'input' && conn.blockId === sourceId));
+            blocks[targetIdx].inputConnected = blocks[targetIdx].connections.some(conn => conn.type === 'input');
+            blocks[targetIdx].sourceRef = undefined; // Clear source reference
+          }
+          
+          // Remove connection from DOM
+          $(this).parent().remove();
+          
+          // Refresh code
+          refreshCode();
+        }
+      });
+    }
+    
+    // Get color for different block categories
+    function getCategoryColor(category) {
+      const colors = {
+        'spreadsheet': '#2ecc71',
+        'ui': '#e74c3c',
+        'flow': '#3498db',
+        'utilities': '#f39c12'
+      };
+      
+      return colors[category] || '#3498db';
+    }
+    
+    // Generate and display the code
+    function refreshCode() {
+      // Build block structure for code generation
+      const blockStructure = {
+        functions: {
+          'main': {
+            name: 'main',
+            parameters: [],
+            blocks: blocks.map(block => ({
+              type: block.type,
+              params: block.params
+            }))
+          }
+        }
+      };
+      
+      // Generate HTML components code
+      let htmlCode = '// HTML Components\n';
+      htmlComponents.forEach(comp => {
+        htmlCode += 'const ' + comp.id + ' = document.createElement("' + comp.type + '");\n';
+        for (let prop in comp.properties) {
+          htmlCode += comp.id + '.style.' + prop + ' = "' + comp.properties[prop] + '";\n';
+        }
+        htmlCode += '\n';
+      });
+      
+      // Call server-side code generation
+      google.script.run.withSuccessHandler(function(result) {
+        $('#codeContent').text(htmlCode + '\n' + result);
+      }).generateCode(blockStructure);
+    }
+    
+    // Save the current project
+    function saveProject() {
+      const projectData = {
+        blocks: blocks,
+        connections: connections,
+        htmlComponents: htmlComponents
+      };
+      
+      // In a real implementation, you would save this to a file or database
+      alert('Project saved! (In a real implementation, this would be saved to a file or database)');
+    }
+    
+    // Export the generated code
+    function exportCode() {
+      const code = $('#codeContent').text();
+      const projectName = prompt('Enter a name for your project:', 'Visual Script Project');
+      
+      if (!projectName) return;
+      
+      // Show loading indicator
+      const $exportBtn = $('#exportBtn');
+      const originalText = $exportBtn.html();
+      $exportBtn.html('<i class="fas fa-spinner fa-spin"></i> Exporting...');
+      
+      // Call server-side export function
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            // Create downloadable content
+            const htmlBlob = new Blob([result.htmlCode], {type: 'text/html'});
+            const htmlUrl = URL.createObjectURL(htmlBlob);
+            
+            // Open in new tab
+            const newTab = window.open(htmlUrl, '_blank');
+            
+            if (!newTab) {
+              alert('Pop-up blocked. Please allow pop-ups for this site and try again.');
+            }
+            
+            // Reset button
+            $exportBtn.html(originalText);
+          } else {
+            alert('Error exporting code: ' + result.message);
+            $exportBtn.html(originalText);
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert('Error: ' + error.message);
+          $exportBtn.html(originalText);
+        })
+        .saveAsNewProject(code, projectName);
+    }
+    
+    // Handle document-level events
+    $(document).ready(function() {
+      // Initialize editor
+      initializeEditor();
+      
+      // Handle document mouseup for connections
+      $(document).on('mouseup', function() {
+        if (isDraggingConnection) {
+          // Find if we're over a compatible connector
+          const mouseX = event.pageX;
+          const mouseY = event.pageY;
+          let connectorFound = false;
+          
+          $('.block-connector').each(function() {
+            const $connector = $(this);
+            const connectorOffset = $connector.offset();
+            const connectorWidth = $connector.width();
+            const connectorHeight = $connector.height();
+            
+            // Check if mouse is over this connector
+            if (mouseX >= connectorOffset.left && 
+                mouseX <= connectorOffset.left + connectorWidth &&
+                mouseY >= connectorOffset.top && 
+                mouseY <= connectorOffset.top + connectorHeight) {
+              
+              // Check if this is a compatible connector type
+              const connectorType = $connector.data('connector');
+              if (startConnector && startConnector.type !== connectorType) {
+                const endBlockId = $connector.closest('.block').attr('id');
+                
+                // Don't connect to self
+                if (startConnector.blockId !== endBlockId) {
+                  // Determine source and target
+                  let sourceId, targetId;
+                  
+                  if (startConnector.type === 'output') {
+                    sourceId = startConnector.blockId;
+                    targetId = endBlockId;
+                  } else {
+                    sourceId = endBlockId;
+                    targetId = startConnector.blockId;
+                  }
+                  
+                  // Create the connection
+                  createConnection(sourceId, targetId);
+                  
+                  // Update code
+                  refreshCode();
+                  
+                  connectorFound = true;
+                  return false; // Break the loop
+                }
+              }
+            }
+          });
+          
+          // Reset connection state
+          isDraggingConnection = false;
+          if (startConnector && startConnector.element) {
+            startConnector.element.removeClass('connecting');
+          }
+          startConnector = null;
+          
+          // Remove temporary connection line
+          if (tempConnection) {
+            tempConnection.remove();
+            tempConnection = null;
+          }
+        }
+      });
+      
+      // Handle document mousemove for connections
+      $(document).on('mousemove', function(e) {
+        if (isDraggingConnection && startConnector) {
+          // Remove previous temporary line
+          if (tempConnection) {
+            tempConnection.remove();
+          }
+          
+          // Get canvas offset
+          const $canvas = $('#canvas');
+          const canvasOffset = $canvas.offset();
+          
+          // Get mouse position relative to canvas
+          const mouseX = e.pageX - canvasOffset.left;
+          const mouseY = e.pageY - canvasOffset.top;
+          
+          // Get connector position relative to canvas
+          const connectorX = startConnector.x - canvasOffset.left;
+          const connectorY = startConnector.y - canvasOffset.top;
+          
+          // Calculate control points for curve
+          const dx = mouseX - connectorX;
+          const dy = mouseY - connectorY;
+          const distance = Math.max(Math.abs(dx), Math.abs(dy));
+          const controlPointY = distance / 4;
+          
+          // Draw curved temporary connection
+          const $svg = $('<svg class="connection-svg temp-connection" width="5000" height="5000" style="position: absolute; top: 0; left: 0; pointer-events: none;"></svg>');
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          
+          let d;
+          if (startConnector.type === 'output') {
+            d = `M ${connectorX} ${connectorY} C ${connectorX} ${connectorY + controlPointY}, ${mouseX} ${mouseY - controlPointY}, ${mouseX} ${mouseY}`;
+          } else {
+            d = `M ${mouseX} ${mouseY} C ${mouseX} ${mouseY + controlPointY}, ${connectorX} ${connectorY - controlPointY}, ${connectorX} ${connectorY}`;
+          }
+          
+          $(path).attr({
+            d: d,
+            stroke: 'orange',
+            'stroke-width': 2,
+            'stroke-dasharray': '5,5',
+            fill: 'none',
+            opacity: 0.6
+          });
+          
+          $svg.append(path);
+          tempConnection = $svg;
+          $canvas.append($svg);
+          
+          // Highlight compatible connectors
+          $('.block-connector').each(function() {
+            const $connector = $(this);
+            const connectorType = $connector.data('connector');
+            
+            // Only highlight compatible connectors
+            if (startConnector.type !== connectorType) {
+              // Get connector position
+              const connectorOffset = $connector.offset();
+              const connectorWidth = $connector.width();
+              const connectorHeight = $connector.height();
+              
+              // Check if mouse is over this connector
+              if (e.pageX >= connectorOffset.left && 
+                  e.pageX <= connectorOffset.left + connectorWidth &&
+                  e.pageY >= connectorOffset.top && 
+                  e.pageY <= connectorOffset.top + connectorHeight) {
+                $connector.addClass('highlight');
+              } else {
+                $connector.removeClass('highlight');
+              }
+            }
+          });
+        }
+      });
+      
+      // Close connections when clicking on canvas background
+      $('#canvas').on('click', function(e) {
+        if ($(e.target).is('#canvas')) {
+          if (selectedElement) {
+            selectedElement.removeClass('selected');
+            selectedElement = null;
+            $('#propertiesContent').html('<p>Select a block or component to edit its properties.</p>');
+          }
+        }
+      });
+      
+      // Add right-click menu for canvas
+      $('#canvas').on('contextmenu', function(e) {
+        e.preventDefault();
+        
+        // Remove existing context menu
+        $('.context-menu').remove();
+        
+        // Get mouse position relative to canvas
+        const canvasOffset = $(this).offset();
+        const x = e.pageX - canvasOffset.left;
+        const y = e.pageY - canvasOffset.top;
+        
+        // Create context menu
+        const $menu = $('<div class="context-menu"></div>');
+        $menu.css({
+          'left': x + 'px',
+          'top': y + 'px'
+        });
+        
+        // Add menu items
+        $menu.append('<div class="context-menu-item" data-action="new-variable">Add Variable</div>');
+        $menu.append('<div class="context-menu-item" data-action="new-function">Add Function</div>');
+        $menu.append('<div class="context-menu-item" data-action="clear-canvas">Clear Canvas</div>');
+        
+        // Add menu to canvas
+        $(this).append($menu);
+        
+        // Handle menu item clicks
+        $('.context-menu-item').on('click', function() {
+          const action = $(this).data('action');
+          
+          switch (action) {
+            case 'new-variable':
+              const varName = prompt('Enter variable name:', 'myVar');
+              if (varName) {
+                createBlock('variables', 'declareVariable', x, y);
+              }
+              break;
+            case 'new-function':
+              const funcName = prompt('Enter function name:', 'myFunction');
+              if (funcName) {
+                createBlock('flow', 'function', x, y);
+              }
+              break;
+            case 'clear-canvas':
+              if (confirm('Clear the entire canvas? This cannot be undone.')) {
+                blocks = [];
+                connections = [];
+                htmlComponents = [];
+                $('#canvas').empty();
+                refreshCode();
+              }
+              break;
+          }
+          
+          // Remove menu
+          $('.context-menu').remove();
+        });
+        
+        // Close menu when clicking outside
+        $(document).one('click', function() {
+          $('.context-menu').remove();
+        });
+      });
+      
+      // Add keyboard shortcuts
+      $(document).on('keydown', function(e) {
+        // Delete selected element with Delete key
+        if (e.keyCode === 46 && selectedElement) {
+          if (selectedElement.hasClass('block')) {
+            const blockId = selectedElement.attr('id');
+            
+            // Remove connections involving this block
+            connections = connections.filter(conn => {
+              if (conn.source === blockId || conn.target === blockId) {
+                return false; // Remove this connection
+              }
+              return true; // Keep this connection
+            });
+            
+            // Remove the block from the data array
+            blocks = blocks.filter(b => b.id !== blockId);
+            
+            // Remove the block from the DOM
+            selectedElement.remove();
+            selectedElement = null;
+            
+            // Update connections
+            updateConnections();
+            
+            // Refresh code
+            refreshCode();
+            
+            // Clear properties panel
+            $('#propertiesContent').html('<p>Select a block or component to edit its properties.</p>');
+          } else if (selectedElement.hasClass('html-component')) {
+            const componentId = selectedElement.attr('id');
+            
+            // Remove the component from the data array
+            htmlComponents = htmlComponents.filter(c => c.id !== componentId);
+            
+            // Remove the component from the DOM
+            selectedElement.remove();
+            selectedElement = null;
+            
+            // Refresh code
+            refreshCode();
+            
+            // Clear properties panel
+            $('#propertiesContent').html('<p>Select a block or component to edit its properties.</p>');
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
