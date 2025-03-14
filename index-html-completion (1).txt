@@ -1,0 +1,882 @@
+// Initialize component categories in sidebar
+    function initComponentCategories() {
+      // Toggle category expansion
+      document.querySelectorAll('.category-header').forEach(header => {
+        header.addEventListener('click', function() {
+          const items = this.nextElementSibling;
+          const toggle = this.querySelector('.category-toggle');
+          
+          if (items.style.display === 'none') {
+            items.style.display = 'block';
+            toggle.textContent = '▼';
+          } else {
+            items.style.display = 'none';
+            toggle.textContent = '▶';
+          }
+        });
+      });
+    }
+    
+    // Initialize console panel
+    function initConsole() {
+      // Add initial messages
+      logToConsole('Visual Script Builder initialized', 'info');
+      logToConsole('Ready to create UI components');
+    }
+    
+    // Log message to console
+    function logToConsole(message, type = '') {
+      const consolePanel = document.getElementById('consolePanel');
+      const logLine = document.createElement('div');
+      logLine.className = 'console-line ' + type;
+      logLine.textContent = message;
+      
+      // Add timestamp
+      const timestamp = new Date().toLocaleTimeString();
+      logLine.textContent = `[${timestamp}] ${message}`;
+      
+      consolePanel.appendChild(logLine);
+      
+      // Scroll to bottom
+      consolePanel.scrollTop = consolePanel.scrollHeight;
+    }
+    
+    // Generate code from the components on the canvas
+    function generateCode() {
+      const codeEditor = document.getElementById('codeEditor');
+      const designCanvas = document.getElementById('designCanvas');
+      const components = designCanvas.querySelectorAll('.canvas-component');
+      
+      // No components, show placeholder
+      if (components.length === 0) {
+        codeEditor.value = '// Add components to the canvas to generate code';
+        return;
+      }
+      
+      // Generate HTML, CSS, and JavaScript code
+      let htmlCode = '<!DOCTYPE html>\n<html>\n<head>\n';
+      htmlCode += '  <base target="_top">\n';
+      htmlCode += '  <meta charset="utf-8">\n';
+      htmlCode += '  <meta name="viewport" content="width=device-width, initial-scale=1">\n';
+      htmlCode += '  <title>' + document.getElementById('canvasTitle').value + '</title>\n';
+      
+      // Add CSS
+      htmlCode += '  <style>\n';
+      htmlCode += '    body {\n';
+      htmlCode += '      font-family: "Google Sans", Arial, sans-serif;\n';
+      htmlCode += '      margin: 0;\n';
+      htmlCode += '      padding: 20px;\n';
+      htmlCode += '      color: ' + (document.getElementById('canvasTheme').value === 'dark' ? '#e8eaed' : '#202124') + ';\n';
+      htmlCode += '      background-color: ' + document.getElementById('canvasBgColor').value + ';\n';
+      htmlCode += '    }\n';
+      htmlCode += '    .container {\n';
+      htmlCode += '      position: relative;\n';
+      htmlCode += '      max-width: ' + (document.getElementById('viewportSelect').value === 'mobile' ? '100%' : '1200px') + ';\n';
+      htmlCode += '      margin: 0 auto;\n';
+      htmlCode += '    }\n';
+      
+      // Add component-specific CSS
+      htmlCode += generateComponentCSS();
+      
+      // Close style tag
+      htmlCode += '  </style>\n';
+      htmlCode += '</head>\n<body>\n';
+      
+      // Generate HTML content
+      htmlCode += '  <div class="container">\n';
+      
+      // Sort components by top position for proper layout
+      const sortedComponents = Array.from(components).sort((a, b) => {
+        return parseInt(a.style.top) - parseInt(b.style.top);
+      });
+      
+      // Add each component
+      sortedComponents.forEach(component => {
+        const type = component.getAttribute('data-type');
+        const style = `position: absolute; left: ${component.style.left}; top: ${component.style.top}; width: ${component.style.width}; height: ${component.style.height};`;
+        const id = component.querySelector('[data-property="id"]')?.value || `${type}_${Math.floor(Math.random() * 1000)}`;
+        
+        // Start component div
+        htmlCode += `    <div id="${id}" class="component ${type}-component" style="${style}">\n`;
+        
+        // Component-specific content
+        htmlCode += generateComponentHTML(component);
+        
+        // Close component div
+        htmlCode += '    </div>\n\n';
+      });
+      
+      // Close container
+      htmlCode += '  </div>\n\n';
+      
+      // Add JavaScript
+      htmlCode += '  <script>\n';
+      htmlCode += '    // Initialize the application when the page loads\n';
+      htmlCode += '    document.addEventListener("DOMContentLoaded", function() {\n';
+      htmlCode += '      initApp();\n';
+      htmlCode += '    });\n\n';
+      
+      // Add app initialization
+      htmlCode += '    // Initialize the application\n';
+      htmlCode += '    function initApp() {\n';
+      htmlCode += '      setupComponents();\n';
+      htmlCode += '      // Connect to Google Apps Script\n';
+      htmlCode += '      connectToAppScript();\n';
+      htmlCode += '    }\n\n';
+      
+      // Add component setup
+      htmlCode += '    // Setup interactive components\n';
+      htmlCode += '    function setupComponents() {\n';
+      
+      // Add component-specific initialization
+      htmlCode += generateComponentJS();
+      
+      // Close setup function
+      htmlCode += '    }\n\n';
+      
+      // Add connection to Apps Script
+      htmlCode += '    // Connect to Google Apps Script\n';
+      htmlCode += '    function connectToAppScript() {\n';
+      htmlCode += '      // Example: Load data from a spreadsheet\n';
+      htmlCode += '      // google.script.run\n';
+      htmlCode += '      //  .withSuccessHandler(function(data) {\n';
+      htmlCode += '      //    // Process the data\n';
+      htmlCode += '      //  })\n';
+      htmlCode += '      //  .withFailureHandler(function(error) {\n';
+      htmlCode += '      //    console.error("Error:", error);\n';
+      htmlCode += '      //  })\n';
+      htmlCode += '      //  .getSpreadsheetData();\n';
+      htmlCode += '    }\n\n';
+      
+      // Add utility functions for interactive components
+      if (hasInteractiveComponents()) {
+        htmlCode += generateUtilityFunctions();
+      }
+      
+      // Close script
+      htmlCode += '  </script>\n';
+      htmlCode += '</body>\n</html>';
+      
+      // Update code in editor
+      codeEditor.value = htmlCode;
+      
+      // Show preview
+      updatePreview(htmlCode);
+      
+      // Log
+      logToConsole('Code generated successfully', 'success');
+    }
+    
+    // Generate component-specific CSS
+    function generateComponentCSS() {
+      let css = '';
+      
+      // Button styles
+      css += '    .button-component button {\n';
+      css += '      background-color: #1a73e8;\n';
+      css += '      color: white;\n';
+      css += '      border: none;\n';
+      css += '      border-radius: 4px;\n';
+      css += '      padding: 8px 16px;\n';
+      css += '      font-family: "Google Sans", Arial, sans-serif;\n';
+      css += '      font-size: 14px;\n';
+      css += '      cursor: pointer;\n';
+      css += '    }\n';
+      
+      // Text input styles
+      css += '    .textInput-component input {\n';
+      css += '      width: 100%;\n';
+      css += '      padding: 8px 12px;\n';
+      css += '      border: 1px solid #dadce0;\n';
+      css += '      border-radius: 4px;\n';
+      css += '      font-family: "Google Sans", Arial, sans-serif;\n';
+      css += '      font-size: 14px;\n';
+      css += '    }\n';
+      
+      // Timer component styles
+      css += '    .timer-component {\n';
+      css += '      text-align: center;\n';
+      css += '    }\n';
+      css += '    .timer-display {\n';
+      css += '      font-size: 24px;\n';
+      css += '      font-weight: 500;\n';
+      css += '      margin-bottom: 8px;\n';
+      css += '    }\n';
+      css += '    .timer-controls {\n';
+      css += '      display: flex;\n';
+      css += '      gap: 8px;\n';
+      css += '      justify-content: center;\n';
+      css += '    }\n';
+      
+      // Counter component styles
+      css += '    .counter-component {\n';
+      css += '      text-align: center;\n';
+      css += '    }\n';
+      css += '    .counter-value {\n';
+      css += '      font-size: 24px;\n';
+      css += '      font-weight: 500;\n';
+      css += '      margin: 8px 0;\n';
+      css += '    }\n';
+      css += '    .counter-controls {\n';
+      css += '      display: flex;\n';
+      css += '      gap: 8px;\n';
+      css += '      justify-content: center;\n';
+      css += '    }\n';
+      
+      // Table styles
+      css += '    .dataTable-component table {\n';
+      css += '      width: 100%;\n';
+      css += '      border-collapse: collapse;\n';
+      css += '    }\n';
+      css += '    .dataTable-component th {\n';
+      css += '      text-align: left;\n';
+      css += '      padding: 8px;\n';
+      css += '      border-bottom: 1px solid #dadce0;\n';
+      css += '      background-color: #f8f9fa;\n';
+      css += '    }\n';
+      css += '    .dataTable-component td {\n';
+      css += '      padding: 8px;\n';
+      css += '      border-bottom: 1px solid #dadce0;\n';
+      css += '    }\n';
+      
+      // Tab component styles
+      css += '    .tabs-component .tabs-header {\n';
+      css += '      display: flex;\n';
+      css += '      border-bottom: 1px solid #dadce0;\n';
+      css += '    }\n';
+      css += '    .tabs-component .tab-item {\n';
+      css += '      padding: 8px 16px;\n';
+      css += '      cursor: pointer;\n';
+      css += '      border-bottom: 3px solid transparent;\n';
+      css += '    }\n';
+      css += '    .tabs-component .tab-item.active {\n';
+      css += '      border-bottom-color: #1a73e8;\n';
+      css += '      color: #1a73e8;\n';
+      css += '    }\n';
+      css += '    .tabs-component .tab-content {\n';
+      css += '      padding: 16px;\n';
+      css += '      display: none;\n';
+      css += '    }\n';
+      css += '    .tabs-component .tab-content.active {\n';
+      css += '      display: block;\n';
+      css += '    }\n';
+      
+      return css;
+    }
+    
+    // Generate component-specific HTML
+    function generateComponentHTML(component) {
+      const type = component.getAttribute('data-type');
+      let html = '';
+      
+      switch (type) {
+        case 'textInput':
+          const placeholder = component.querySelector('[data-property="placeholder"]')?.value || 'Enter text...';
+          html = `      <input type="text" placeholder="${placeholder}">\n`;
+          break;
+        case 'button':
+          const buttonText = component.querySelector('[data-property="text"]')?.value || 'Button';
+          html = `      <button>${buttonText}</button>\n`;
+          break;
+        case 'heading':
+          const headingText = component.querySelector('[data-property="text"]')?.value || 'Heading';
+          const headingLevel = component.querySelector('[data-property="headingLevel"]')?.value || 'h2';
+          html = `      <${headingLevel}>${headingText}</${headingLevel}>\n`;
+          break;
+        case 'paragraph':
+          const paragraphText = component.querySelector('[data-property="text"]')?.value || 'Paragraph text';
+          html = `      <p>${paragraphText}</p>\n`;
+          break;
+        case 'timer':
+          html = `      <div class="timer-display">00:00</div>\n`;
+          html += `      <div class="timer-controls">\n`;
+          html += `        <button class="timer-start">Start</button>\n`;
+          html += `        <button class="timer-pause">Pause</button>\n`;
+          html += `        <button class="timer-reset">Reset</button>\n`;
+          html += `      </div>\n`;
+          break;
+        case 'counter':
+          const counterLabel = component.querySelector('[data-property="label"]')?.value || 'Counter';
+          const startValue = component.querySelector('[data-property="startValue"]')?.value || 0;
+          html = `      <div class="counter-label">${counterLabel}</div>\n`;
+          html += `      <div class="counter-value">${startValue}</div>\n`;
+          html += `      <div class="counter-controls">\n`;
+          html += `        <button class="counter-decrement">-</button>\n`;
+          html += `        <button class="counter-increment">+</button>\n`;
+          html += `      </div>\n`;
+          break;
+        case 'dateDisplay':
+          html = `      <div class="date-value">${new Date().toLocaleDateString()}</div>\n`;
+          break;
+        case 'tabs':
+          html = `      <div class="tabs-header">\n`;
+          html += `        <div class="tab-item active">Tab 1</div>\n`;
+          html += `        <div class="tab-item">Tab 2</div>\n`;
+          html += `        <div class="tab-item">Tab 3</div>\n`;
+          html += `      </div>\n`;
+          html += `      <div class="tabs-content">\n`;
+          html += `        <div class="tab-content active">Content for Tab 1</div>\n`;
+          html += `        <div class="tab-content">Content for Tab 2</div>\n`;
+          html += `        <div class="tab-content">Content for Tab 3</div>\n`;
+          html += `      </div>\n`;
+          break;
+        case 'dataTable':
+          const headers = (component.querySelector('[data-property="headers"]')?.value || 'Column 1, Column 2, Column 3').split(',').map(h => h.trim());
+          html = `      <table>\n`;
+          html += `        <thead>\n`;
+          html += `          <tr>\n`;
+          headers.forEach(header => {
+            html += `            <th>${header}</th>\n`;
+          });
+          html += `          </tr>\n`;
+          html += `        </thead>\n`;
+          html += `        <tbody>\n`;
+          // Sample data rows
+          for (let i = 1; i <= 2; i++) {
+            html += `          <tr>\n`;
+            for (let j = 1; j <= headers.length; j++) {
+              html += `            <td>Data ${i}-${j}</td>\n`;
+            }
+            html += `          </tr>\n`;
+          }
+          html += `        </tbody>\n`;
+          html += `      </table>\n`;
+          break;
+        case 'conditionalDisplay':
+          const content = component.querySelector('[data-property="content"]')?.value || 'Conditional content';
+          html = `      <div class="conditional-content">${content}</div>\n`;
+          break;
+        default:
+          html = `      <div>${formatComponentName(type)}</div>\n`;
+      }
+      
+      return html;
+    }
+    
+    // Generate component-specific JavaScript
+    function generateComponentJS() {
+      const components = document.querySelectorAll('.canvas-component');
+      let js = '';
+      
+      // Check for timer components
+      const timerComponents = Array.from(components).filter(comp => comp.getAttribute('data-type') === 'timer');
+      if (timerComponents.length > 0) {
+        js += '      // Initialize timers\n';
+        timerComponents.forEach((timer, index) => {
+          const id = timer.querySelector('[data-property="id"]')?.value || `timer_${index}`;
+          const duration = timer.querySelector('[data-property="duration"]')?.value || 60;
+          const countDirection = timer.querySelector('[data-property="countDirection"]')?.value || 'down';
+          const autoStart = timer.querySelector('[data-property="autoStart"]')?.value === 'true';
+          
+          js += `      initTimer("${id}", ${duration}, "${countDirection}", ${autoStart});\n`;
+        });
+        js += '\n';
+      }
+      
+      // Check for counter components
+      const counterComponents = Array.from(components).filter(comp => comp.getAttribute('data-type') === 'counter');
+      if (counterComponents.length > 0) {
+        js += '      // Initialize counters\n';
+        counterComponents.forEach((counter, index) => {
+          const id = counter.querySelector('[data-property="id"]')?.value || `counter_${index}`;
+          const startValue = counter.querySelector('[data-property="startValue"]')?.value || 0;
+          const increment = counter.querySelector('[data-property="increment"]')?.value || 1;
+          
+          js += `      initCounter("${id}", ${startValue}, ${increment});\n`;
+        });
+        js += '\n';
+      }
+      
+      // Check for tab components
+      const tabComponents = Array.from(components).filter(comp => comp.getAttribute('data-type') === 'tabs');
+      if (tabComponents.length > 0) {
+        js += '      // Initialize tabs\n';
+        tabComponents.forEach((tabs, index) => {
+          const id = tabs.querySelector('[data-property="id"]')?.value || `tabs_${index}`;
+          
+          js += `      initTabs("${id}");\n`;
+        });
+        js += '\n';
+      }
+      
+      // Check for conditional display components
+      const conditionalComponents = Array.from(components).filter(comp => 
+        ['conditionalDisplay', 'conditionalAction'].includes(comp.getAttribute('data-type'))
+      );
+      
+      if (conditionalComponents.length > 0) {
+        js += '      // Initialize conditional components\n';
+        conditionalComponents.forEach((conditional, index) => {
+          const id = conditional.querySelector('[data-property="id"]')?.value || `conditional_${index}`;
+          const conditionType = conditional.querySelector('[data-property="conditionType"]')?.value || 'date';
+          
+          js += `      checkCondition("${id}", "${conditionType}");\n`;
+        });
+        js += '\n';
+      }
+      
+      return js;
+    }
+    
+    // Generate utility functions for interactive components
+    function generateUtilityFunctions() {
+      const components = document.querySelectorAll('.canvas-component');
+      let js = '';
+      
+      // Check for timer components
+      const hasTimers = Array.from(components).some(comp => comp.getAttribute('data-type') === 'timer');
+      if (hasTimers) {
+        js += '    // Initialize a timer component\n';
+        js += '    function initTimer(id, duration, countDirection, autoStart) {\n';
+        js += '      const component = document.getElementById(id);\n';
+        js += '      if (!component) return;\n\n';
+        js += '      const display = component.querySelector(".timer-display");\n';
+        js += '      const startBtn = component.querySelector(".timer-start");\n';
+        js += '      const pauseBtn = component.querySelector(".timer-pause");\n';
+        js += '      const resetBtn = component.querySelector(".timer-reset");\n\n';
+        js += '      let timeLeft = countDirection === "down" ? duration : 0;\n';
+        js += '      let timerId = null;\n\n';
+        js += '      // Format time as MM:SS\n';
+        js += '      function formatTime(seconds) {\n';
+        js += '        const mins = Math.floor(seconds / 60);\n';
+        js += '        const secs = seconds % 60;\n';
+        js += '        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;\n';
+        js += '      }\n\n';
+        js += '      // Update display\n';
+        js += '      function updateDisplay() {\n';
+        js += '        display.textContent = formatTime(timeLeft);\n';
+        js += '      }\n\n';
+        js += '      // Timer tick function\n';
+        js += '      function timerTick() {\n';
+        js += '        if (countDirection === "down") {\n';
+        js += '          timeLeft--;\n';
+        js += '          if (timeLeft <= 0) {\n';
+        js += '            clearInterval(timerId);\n';
+        js += '            timeLeft = 0;\n';
+        js += '            // Handle completion\n';
+        js += '          }\n';
+        js += '        } else {\n';
+        js += '          timeLeft++;\n';
+        js += '        }\n';
+        js += '        updateDisplay();\n';
+        js += '      }\n\n';
+        js += '      // Start timer\n';
+        js += '      function startTimer() {\n';
+        js += '        if (!timerId) {\n';
+        js += '          timerId = setInterval(timerTick, 1000);\n';
+        js += '          startBtn.disabled = true;\n';
+        js += '          pauseBtn.disabled = false;\n';
+        js += '        }\n';
+        js += '      }\n\n';
+        js += '      // Pause timer\n';
+        js += '      function pauseTimer() {\n';
+        js += '        if (timerId) {\n';
+        js += '          clearInterval(timerId);\n';
+        js += '          timerId = null;\n';
+        js += '          startBtn.disabled = false;\n';
+        js += '          pauseBtn.disabled = true;\n';
+        js += '        }\n';
+        js += '      }\n\n';
+        js += '      // Reset timer\n';
+        js += '      function resetTimer() {\n';
+        js += '        pauseTimer();\n';
+        js += '        timeLeft = countDirection === "down" ? duration : 0;\n';
+        js += '        updateDisplay();\n';
+        js += '      }\n\n';
+        js += '      // Set up event listeners\n';
+        js += '      startBtn.addEventListener("click", startTimer);\n';
+        js += '      pauseBtn.addEventListener("click", pauseTimer);\n';
+        js += '      resetBtn.addEventListener("click", resetTimer);\n\n';
+        js += '      // Initial state\n';
+        js += '      updateDisplay();\n';
+        js += '      pauseBtn.disabled = true;\n\n';
+        js += '      // Auto-start if configured\n';
+        js += '      if (autoStart) {\n';
+        js += '        startTimer();\n';
+        js += '      }\n';
+        js += '    }\n\n';
+      }
+      
+      // Check for counter components
+      const hasCounters = Array.from(components).some(comp => comp.getAttribute('data-type') === 'counter');
+      if (hasCounters) {
+        js += '    // Initialize a counter component\n';
+        js += '    function initCounter(id, startValue, increment) {\n';
+        js += '      const component = document.getElementById(id);\n';
+        js += '      if (!component) return;\n\n';
+        js += '      const valueEl = component.querySelector(".counter-value");\n';
+        js += '      const incrementBtn = component.querySelector(".counter-increment");\n';
+        js += '      const decrementBtn = component.querySelector(".counter-decrement");\n\n';
+        js += '      let value = startValue;\n\n';
+        js += '      // Update display\n';
+        js += '      function updateDisplay() {\n';
+        js += '        valueEl.textContent = value;\n';
+        js += '      }\n\n';
+        js += '      // Increment\n';
+        js += '      function incrementValue() {\n';
+        js += '        value += increment;\n';
+        js += '        updateDisplay();\n';
+        js += '      }\n\n';
+        js += '      // Decrement\n';
+        js += '      function decrementValue() {\n';
+        js += '        value -= increment;\n';
+        js += '        updateDisplay();\n';
+        js += '      }\n\n';
+        js += '      // Set up event listeners\n';
+        js += '      incrementBtn.addEventListener("click", incrementValue);\n';
+        js += '      decrementBtn.addEventListener("click", decrementValue);\n\n';
+        js += '      // Initial display\n';
+        js += '      updateDisplay();\n';
+        js += '    }\n\n';
+      }
+      
+      // Check for tab components
+      const hasTabs = Array.from(components).some(comp => comp.getAttribute('data-type') === 'tabs');
+      if (hasTabs) {
+        js += '    // Initialize a tabs component\n';
+        js += '    function initTabs(id) {\n';
+        js += '      const component = document.getElementById(id);\n';
+        js += '      if (!component) return;\n\n';
+        js += '      const tabItems = component.querySelectorAll(".tab-item");\n';
+        js += '      const tabContents = component.querySelectorAll(".tab-content");\n\n';
+        js += '      // Switch tab\n';
+        js += '      function switchTab(index) {\n';
+        js += '        // Remove active class from all tabs and contents\n';
+        js += '        tabItems.forEach(item => item.classList.remove("active"));\n';
+        js += '        tabContents.forEach(content => content.classList.remove("active"));\n\n';
+        js += '        // Add active class to selected tab and content\n';
+        js += '        tabItems[index].classList.add("active");\n';
+        js += '        tabContents[index].classList.add("active");\n';
+        js += '      }\n\n';
+        js += '      // Set up event listeners for each tab\n';
+        js += '      tabItems.forEach((tab, index) => {\n';
+        js += '        tab.addEventListener("click", () => switchTab(index));\n';
+        js += '      });\n';
+        js += '    }\n\n';
+      }
+      
+      // Check for conditional components
+      const hasConditionals = Array.from(components).some(comp => 
+        ['conditionalDisplay', 'conditionalAction'].includes(comp.getAttribute('data-type'))
+      );
+      
+      if (hasConditionals) {
+        js += '    // Check condition for conditional component\n';
+        js += '    function checkCondition(id, conditionType) {\n';
+        js += '      const component = document.getElementById(id);\n';
+        js += '      if (!component) return;\n\n';
+        js += '      let conditionMet = false;\n\n';
+        js += '      // Check different condition types\n';
+        js += '      if (conditionType === "date") {\n';
+        js += '        // Get target date from component attributes or data\n';
+        js += '        const targetDateStr = component.getAttribute("data-target-date") || "";\n';
+        js += '        const dateCondition = component.getAttribute("data-date-condition") || "equals";\n\n';
+        js += '        if (targetDateStr) {\n';
+        js += '          const targetDate = new Date(targetDateStr);\n';
+        js += '          const today = new Date();\n';
+        js += '          \n';
+        js += '          // Reset hours to compare dates only\n';
+        js += '          targetDate.setHours(0, 0, 0, 0);\n';
+        js += '          today.setHours(0, 0, 0, 0);\n\n';
+        js += '          // Check date condition\n';
+        js += '          switch (dateCondition) {\n';
+        js += '            case "equals":\n';
+        js += '              conditionMet = targetDate.getTime() === today.getTime();\n';
+        js += '              break;\n';
+        js += '            case "before":\n';
+        js += '              conditionMet = today < targetDate;\n';
+        js += '              break;\n';
+        js += '            case "after":\n';
+        js += '              conditionMet = today > targetDate;\n';
+        js += '              break;\n';
+        js += '            case "withinDays":\n';
+        js += '              const daysRange = parseInt(component.getAttribute("data-days-range") || "7");\n';
+        js += '              const diffTime = Math.abs(targetDate - today);\n';
+        js += '              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n';
+        js += '              conditionMet = diffDays <= daysRange;\n';
+        js += '              break;\n';
+        js += '          }\n';
+        js += '        }\n';
+        js += '      } else if (conditionType === "value") {\n';
+        js += '        // Value-based condition logic would go here\n';
+        js += '        // This is a placeholder for demonstration\n';
+        js += '        conditionMet = true;\n';
+        js += '      }\n\n';
+        js += '      // Apply effect based on condition\n';
+        js += '      if (conditionMet) {\n';
+        js += '        // Show component or apply conditional effect\n';
+        js += '        component.style.display = "block";\n';
+        js += '      } else {\n';
+        js += '        // Hide component or apply alternative effect\n';
+        js += '        component.style.display = "none";\n';
+        js += '      }\n\n';
+        js += '      return conditionMet;\n';
+        js += '    }\n\n';
+      }
+      
+      return js;
+    }
+    
+    // Check if there are any interactive components
+    function hasInteractiveComponents() {
+      const components = document.querySelectorAll('.canvas-component');
+      const interactiveTypes = ['timer', 'counter', 'tabs', 'conditionalDisplay', 'conditionalAction'];
+      
+      return Array.from(components).some(comp => 
+        interactiveTypes.includes(comp.getAttribute('data-type'))
+      );
+    }
+    
+    // Update preview
+    function updatePreview(htmlCode) {
+      const previewFrame = document.getElementById('previewFrame');
+      
+      // Create a blob with the HTML content
+      const blob = new Blob([htmlCode], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      // Update iframe src
+      previewFrame.src = url;
+      
+      // Clean up URL object after loading
+      previewFrame.onload = function() {
+        URL.revokeObjectURL(url);
+      };
+    }
+    
+    // Format component name for display
+    function formatComponentName(name) {
+      return name
+        .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+        .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+    }
+    
+    // Initialize event handlers
+    function initEventHandlers() {
+      // Run button
+      document.getElementById('runProjectBtn').addEventListener('click', function() {
+        // Generate code
+        generateCode();
+        
+        // Switch to preview tab
+        document.querySelector('.footer-tab[data-panel="preview"]').click();
+        
+        // Log
+        logToConsole('Running project...', 'info');
+        
+        // Show notification
+        showNotification('Project is running in preview mode', 'success');
+      });
+      
+      // Save button
+      document.getElementById('saveProjectBtn').addEventListener('click', function() {
+        // Save project to localStorage for demo
+        saveProject();
+        
+        // Show notification
+        showNotification('Project saved successfully', 'success');
+      });
+      
+      // New project button
+      document.getElementById('newProjectBtn').addEventListener('click', function() {
+        // Confirm before creating new project
+        if (confirm('Create a new project? Any unsaved changes will be lost.')) {
+          // Clear design canvas
+          document.getElementById('designCanvas').innerHTML = '';
+          
+          // Reset canvas properties
+          document.getElementById('canvasTitle').value = 'My Application';
+          document.getElementById('canvasTheme').value = 'light';
+          document.getElementById('canvasBgColor').value = '#ffffff';
+          document.getElementById('canvasBgColorText').value = '#ffffff';
+          
+          // Update workspace title
+          document.querySelector('.workspace-title').textContent = 'Design Canvas';
+          
+          // Clear code editor
+          document.getElementById('codeEditor').value = '// Add components to the canvas to generate code';
+          
+          // Clear preview
+          document.getElementById('previewFrame').src = 'about:blank';
+          
+          // Log
+          logToConsole('New project created', 'info');
+          
+          // Show notification
+          showNotification('New project created', 'success');
+        }
+      });
+      
+      // Copy code button
+      document.getElementById('copyCodeBtn').addEventListener('click', function() {
+        const codeEditor = document.getElementById('codeEditor');
+        
+        // Select the code
+        codeEditor.select();
+        
+        // Copy to clipboard
+        document.execCommand('copy');
+        
+        // Show notification
+        showNotification('Code copied to clipboard', 'success');
+      });
+      
+      // Format code button
+      document.getElementById('formatCodeBtn').addEventListener('click', function() {
+        // For a real implementation, this would use a code formatter
+        // This is a simple placeholder
+        showNotification('Code formatting not implemented in this demo', 'info');
+      });
+      
+      // Download code button
+      document.getElementById('downloadCodeBtn').addEventListener('click', function() {
+        const codeEditor = document.getElementById('codeEditor');
+        const code = codeEditor.value;
+        
+        // Create a blob with the code
+        const blob = new Blob([code], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = document.getElementById('canvasTitle').value.replace(/\s+/g, '_') + '.html';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show notification
+        showNotification('Code downloaded', 'success');
+      });
+    }
+    
+    // Save project
+    function saveProject() {
+      // Get canvas elements
+      const designCanvas = document.getElementById('designCanvas');
+      const components = designCanvas.querySelectorAll('.canvas-component');
+      
+      // Create project data
+      const projectData = {
+        title: document.getElementById('canvasTitle').value,
+        theme: document.getElementById('canvasTheme').value,
+        bgColor: document.getElementById('canvasBgColor').value,
+        viewport: document.getElementById('viewportSelect').value,
+        components: Array.from(components).map(component => {
+          // Get component data
+          return {
+            type: component.getAttribute('data-type'),
+            style: {
+              left: component.style.left,
+              top: component.style.top,
+              width: component.style.width,
+              height: component.style.height
+            }
+            // In a real implementation, would also save component properties
+          };
+        })
+      };
+      
+      // Save to localStorage for demo purposes
+      localStorage.setItem('visualScriptProject', JSON.stringify(projectData));
+      
+      // Log
+      logToConsole('Project saved to browser storage', 'success');
+    }
+    
+    // Load project
+    function loadProject() {
+      // Get saved project from localStorage
+      const savedProject = localStorage.getItem('visualScriptProject');
+      
+      if (savedProject) {
+        try {
+          const projectData = JSON.parse(savedProject);
+          
+          // Set canvas properties
+          document.getElementById('canvasTitle').value = projectData.title || 'My Application';
+          document.getElementById('canvasTheme').value = projectData.theme || 'light';
+          document.getElementById('canvasBgColor').value = projectData.bgColor || '#ffffff';
+          document.getElementById('canvasBgColorText').value = projectData.bgColor || '#ffffff';
+          document.getElementById('viewportSelect').value = projectData.viewport || 'desktop';
+          
+          // Update workspace title
+          document.querySelector('.workspace-title').textContent = projectData.title || 'Design Canvas';
+          
+          // Clear design canvas
+          document.getElementById('designCanvas').innerHTML = '';
+          
+          // Create components
+          if (projectData.components) {
+            projectData.components.forEach(componentData => {
+              const component = createComponent(
+                componentData.type,
+                parseInt(componentData.style.left),
+                parseInt(componentData.style.top)
+              );
+              
+              // Set size
+              component.style.width = componentData.style.width;
+              component.style.height = componentData.style.height;
+              
+              // In a real implementation, would also restore component properties
+            });
+          }
+          
+          // Log
+          logToConsole('Project loaded from browser storage', 'success');
+          
+          // Show notification
+          showNotification('Project loaded successfully', 'success');
+        } catch (error) {
+          console.error('Error loading project:', error);
+          logToConsole('Error loading project: ' + error.message, 'error');
+        }
+      } else {
+        logToConsole('No saved project found', 'info');
+      }
+    }
+    
+    // Show notification
+    function showNotification(message, type = '') {
+      const notification = document.getElementById('notificationTemplate').cloneNode(true);
+      notification.removeAttribute('id');
+      
+      // Set notification content
+      notification.querySelector('.notification-message').textContent = message;
+      
+      // Add type class
+      if (type) {
+        notification.classList.add(type);
+      }
+      
+      // Add notification to the document
+      document.body.appendChild(notification);
+      
+      // Show the notification with animation
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 10);
+      
+      // Hide after delay
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 5000);
+      
+      // Close button
+      notification.querySelector('.notification-close').addEventListener('click', function() {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      });
+    }
+  </script>
+</body>
+</html>

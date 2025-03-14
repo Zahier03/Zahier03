@@ -1,0 +1,1086 @@
+// Add enhanced HTML editing features to the UI Designer
+
+// New UI element categories for dynamic components
+const dynamicElementCategories = {
+  interactive: {
+    name: "Interactive Elements",
+    icon: "⚡",
+    elements: [
+      {
+        id: "counter",
+        name: "Counter",
+        description: "Numerical counter with increment/decrement",
+        defaultWidth: 200,
+        defaultHeight: 80,
+        html: (props) => `<div class="counter-component">
+          <div class="counter-label">${props.label || 'Counter'}</div>
+          <div class="counter-value">${props.startValue || 0}</div>
+          <div class="counter-controls">
+            <button class="counter-decrement">-</button>
+            <button class="counter-increment">+</button>
+          </div>
+        </div>`,
+        properties: [
+          { name: "label", type: "text", default: "Counter" },
+          { name: "startValue", type: "number", default: 0 },
+          { name: "increment", type: "number", default: 1 },
+          { name: "format", type: "text", default: "{{value}}", help: "Format with {{value}} placeholder" },
+          { name: "serverScript", type: "select", options: ["None", "Save to Sheet", "Custom"], default: "None" }
+        ]
+      },
+      {
+        id: "timer",
+        name: "Timer",
+        description: "Countdown or count-up timer",
+        defaultWidth: 200,
+        defaultHeight: 100,
+        html: (props) => `<div class="timer-component">
+          <div class="timer-display">
+            <span class="timer-minutes">00</span>:<span class="timer-seconds">00</span>
+          </div>
+          <div class="timer-controls">
+            <button class="timer-start">Start</button>
+            <button class="timer-pause">Pause</button>
+            <button class="timer-reset">Reset</button>
+          </div>
+        </div>`,
+        properties: [
+          { name: "duration", type: "number", default: 60, help: "Duration in seconds" },
+          { name: "countDirection", type: "select", options: ["down", "up"], default: "down" },
+          { name: "autoStart", type: "boolean", default: false },
+          { name: "onComplete", type: "select", options: ["None", "Alert", "Run Function"], default: "None" },
+          { name: "completionMessage", type: "text", default: "Timer completed!" }
+        ]
+      },
+      {
+        id: "dateDisplay",
+        name: "Date Display",
+        description: "Formatted date and time display",
+        defaultWidth: 250,
+        defaultHeight: 60,
+        html: (props) => `<div class="date-display-component">
+          <div class="date-value">${new Date().toLocaleDateString()}</div>
+        </div>`,
+        properties: [
+          { name: "format", type: "select", options: ["Short", "Medium", "Long", "Full"], default: "Medium" },
+          { name: "updateInterval", type: "number", default: 60000, help: "Update interval in ms (0 for static)" },
+          { name: "includeTime", type: "boolean", default: false },
+          { name: "highlightToday", type: "boolean", default: false }
+        ]
+      }
+    ]
+  },
+  layout: {
+    name: "Layout Components",
+    icon: "🔳",
+    elements: [
+      {
+        id: "tabs",
+        name: "Tab Container",
+        description: "Tabbed content container",
+        defaultWidth: 400,
+        defaultHeight: 300,
+        html: (props) => `<div class="tabs-component">
+          <div class="tabs-header">
+            <div class="tab-item active">Tab 1</div>
+            <div class="tab-item">Tab 2</div>
+            <div class="tab-item">Tab 3</div>
+          </div>
+          <div class="tabs-content">
+            <div class="tab-content active">Content for Tab 1</div>
+            <div class="tab-content">Content for Tab 2</div>
+            <div class="tab-content">Content for Tab 3</div>
+          </div>
+        </div>`,
+        properties: [
+          { name: "tabCount", type: "number", default: 3, help: "Number of tabs" },
+          { name: "tabLabels", type: "text", default: "Tab 1, Tab 2, Tab 3", help: "Comma-separated tab labels" },
+          { name: "activeTab", type: "number", default: 1, help: "Initially active tab (1-based)" },
+          { name: "tabStyle", type: "select", options: ["Tabs", "Pills", "Underline"], default: "Tabs" }
+        ]
+      },
+      {
+        id: "accordion",
+        name: "Accordion",
+        description: "Collapsible content sections",
+        defaultWidth: 350,
+        defaultHeight: 250,
+        html: (props) => `<div class="accordion-component">
+          <div class="accordion-item">
+            <div class="accordion-header">Section 1</div>
+            <div class="accordion-content">Content for section 1</div>
+          </div>
+          <div class="accordion-item">
+            <div class="accordion-header">Section 2</div>
+            <div class="accordion-content">Content for section 2</div>
+          </div>
+        </div>`,
+        properties: [
+          { name: "sectionCount", type: "number", default: 2, help: "Number of sections" },
+          { name: "sectionLabels", type: "text", default: "Section 1, Section 2", help: "Comma-separated section labels" },
+          { name: "expandedSection", type: "number", default: 1, help: "Initially expanded section (0 for all closed)" },
+          { name: "multipleOpen", type: "boolean", default: false, help: "Allow multiple sections open" }
+        ]
+      },
+      {
+        id: "grid",
+        name: "Grid Layout",
+        description: "Responsive grid container",
+        defaultWidth: 400,
+        defaultHeight: 300,
+        html: (props) => `<div class="grid-component">
+          <div class="grid-item">Item 1</div>
+          <div class="grid-item">Item 2</div>
+          <div class="grid-item">Item 3</div>
+          <div class="grid-item">Item 4</div>
+        </div>`,
+        properties: [
+          { name: "columns", type: "number", default: 2, help: "Number of columns" },
+          { name: "gap", type: "number", default: 10, help: "Gap between items (px)" },
+          { name: "responsive", type: "boolean", default: true, help: "Responsive layout" },
+          { name: "itemCount", type: "number", default: 4, help: "Number of items" }
+        ]
+      }
+    ]
+  },
+  data: {
+    name: "Data Components",
+    icon: "📊",
+    elements: [
+      {
+        id: "dataTable",
+        name: "Data Table",
+        description: "Interactive data table with sorting and filtering",
+        defaultWidth: 500,
+        defaultHeight: 300,
+        html: (props) => `<div class="data-table-component">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Column 1</th>
+                <th>Column 2</th>
+                <th>Column 3</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Data 1-1</td>
+                <td>Data 1-2</td>
+                <td>Data 1-3</td>
+              </tr>
+              <tr>
+                <td>Data 2-1</td>
+                <td>Data 2-2</td>
+                <td>Data 2-3</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>`,
+        properties: [
+          { name: "dataSource", type: "select", options: ["Manual", "Sheet", "Script Function"], default: "Manual" },
+          { name: "sheetName", type: "text", default: "", help: "Sheet name (if using Sheet data source)" },
+          { name: "range", type: "text", default: "", help: "Cell range (if using Sheet data source)" },
+          { name: "headers", type: "text", default: "Column 1, Column 2, Column 3", help: "Comma-separated headers" },
+          { name: "sortable", type: "boolean", default: true },
+          { name: "filterable", type: "boolean", default: true },
+          { name: "pageable", type: "boolean", default: false },
+          { name: "pageSize", type: "number", default: 10, help: "Rows per page (if pageable)" }
+        ]
+      },
+      {
+        id: "chart",
+        name: "Chart",
+        description: "Data visualization chart",
+        defaultWidth: 400,
+        defaultHeight: 300,
+        html: (props) => `<div class="chart-component">
+          <div class="chart-placeholder">Chart: ${props.chartType || 'Bar'}</div>
+        </div>`,
+        properties: [
+          { name: "chartType", type: "select", options: ["Bar", "Line", "Pie", "Area", "Scatter"], default: "Bar" },
+          { name: "dataSource", type: "select", options: ["Manual", "Sheet", "Script Function"], default: "Sheet" },
+          { name: "sheetName", type: "text", default: "", help: "Sheet name (if using Sheet data source)" },
+          { name: "range", type: "text", default: "", help: "Cell range (if using Sheet data source)" },
+          { name: "title", type: "text", default: "Chart Title" },
+          { name: "showLegend", type: "boolean", default: true },
+          { name: "colors", type: "text", default: "#4285f4,#ea4335,#fbbc04,#34a853,#5f6368", help: "Comma-separated colors" }
+        ]
+      },
+      {
+        id: "progressBar",
+        name: "Progress Bar",
+        description: "Progress indicator with customizable appearance",
+        defaultWidth: 300,
+        defaultHeight: 40,
+        html: (props) => `<div class="progress-component">
+          <div class="progress-label">${props.label || 'Progress'}</div>
+          <div class="progress-container">
+            <div class="progress-bar" style="width: ${props.value || 50}%"></div>
+          </div>
+          <div class="progress-value">${props.value || 50}%</div>
+        </div>`,
+        properties: [
+          { name: "label", type: "text", default: "Progress" },
+          { name: "value", type: "number", default: 50, help: "Progress value (0-100)" },
+          { name: "showValue", type: "boolean", default: true },
+          { name: "color", type: "color", default: "#4285f4" },
+          { name: "animate", type: "boolean", default: false }
+        ]
+      }
+    ]
+  },
+  conditional: {
+    name: "Conditional Components",
+    icon: "🔄",
+    elements: [
+      {
+        id: "conditionalDisplay",
+        name: "Conditional Display",
+        description: "Content that appears based on conditions",
+        defaultWidth: 300,
+        defaultHeight: 150,
+        html: (props) => `<div class="conditional-component">
+          <div class="conditional-content">
+            Content that appears when condition is true
+          </div>
+        </div>`,
+        properties: [
+          { name: "conditionType", type: "select", options: ["Date", "Value", "User", "Custom"], default: "Date" },
+          { name: "dateCondition", type: "select", options: ["Equals", "Before", "After", "Within Days"], default: "Equals" },
+          { name: "targetDate", type: "text", default: new Date().toISOString().split('T')[0], help: "YYYY-MM-DD format" },
+          { name: "daysRange", type: "number", default: 7, help: "For 'Within Days' condition" },
+          { name: "hideWhenFalse", type: "boolean", default: true },
+          { name: "alternateContent", type: "text", default: "Condition not met", help: "Content to show when false" }
+        ]
+      },
+      {
+        id: "notification",
+        name: "Notification",
+        description: "Notification that appears based on conditions",
+        defaultWidth: 300,
+        defaultHeight: 80,
+        html: (props) => `<div class="notification-component ${props.type || 'info'}">
+          <div class="notification-icon">i</div>
+          <div class="notification-content">
+            ${props.message || 'Notification message'}
+          </div>
+          <div class="notification-close">×</div>
+        </div>`,
+        properties: [
+          { name: "type", type: "select", options: ["info", "success", "warning", "error"], default: "info" },
+          { name: "message", type: "text", default: "Notification message" },
+          { name: "showClose", type: "boolean", default: true },
+          { name: "autoHide", type: "boolean", default: false },
+          { name: "hideDelay", type: "number", default: 5000, help: "Auto-hide delay in ms" },
+          { name: "showCondition", type: "select", options: ["Always", "Date", "Custom"], default: "Always" },
+          { name: "dateCondition", type: "select", options: ["Equals", "Before", "After"], default: "Equals", help: "If Date condition" }
+        ]
+      },
+      {
+        id: "conditionalAction",
+        name: "Conditional Action",
+        description: "Triggers actions based on conditions",
+        defaultWidth: 200,
+        defaultHeight: 60,
+        html: (props) => `<div class="conditional-action-component">
+          <button class="action-button">${props.buttonText || 'Check Condition'}</button>
+          <div class="action-status"></div>
+        </div>`,
+        properties: [
+          { name: "buttonText", type: "text", default: "Check Condition" },
+          { name: "conditionType", type: "select", options: ["Date", "Value", "User", "Custom"], default: "Date" },
+          { name: "actionType", type: "select", options: ["Show Message", "Send Email", "Run Function"], default: "Show Message" },
+          { name: "message", type: "text", default: "Condition met!", help: "For 'Show Message' action" },
+          { name: "emailRecipient", type: "text", default: "", help: "For 'Send Email' action" },
+          { name: "emailSubject", type: "text", default: "Notification", help: "For 'Send Email' action" },
+          { name: "functionName", type: "text", default: "", help: "For 'Run Function' action" }
+        ]
+      }
+    ]
+  }
+};
+
+// Enhanced text formatting options for the Property Editor
+const textFormattingProperties = [
+  { name: "fontFamily", type: "select", 
+    options: [
+      "Google Sans", "Arial", "Roboto", "Helvetica", "Times New Roman", 
+      "Courier New", "Georgia", "Verdana", "Tahoma", "Impact"
+    ], 
+    default: "Google Sans" 
+  },
+  { name: "fontSize", type: "number", default: 14, min: 8, max: 72 },
+  { name: "fontWeight", type: "select", 
+    options: ["normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900"], 
+    default: "normal" 
+  },
+  { name: "fontStyle", type: "select", options: ["normal", "italic"], default: "normal" },
+  { name: "textDecoration", type: "select", 
+    options: ["none", "underline", "overline", "line-through"], 
+    default: "none" 
+  },
+  { name: "textTransform", type: "select", 
+    options: ["none", "uppercase", "lowercase", "capitalize"], 
+    default: "none" 
+  },
+  { name: "letterSpacing", type: "select", 
+    options: ["normal", "tight", "medium", "wide", "extra-wide"], 
+    default: "normal",
+    values: { "normal": "normal", "tight": "-0.5px", "medium": "1px", "wide": "2px", "extra-wide": "4px" }
+  },
+  { name: "lineHeight", type: "select", 
+    options: ["normal", "tight", "medium", "relaxed", "loose"], 
+    default: "normal",
+    values: { "normal": "normal", "tight": "1.2", "medium": "1.5", "relaxed": "1.8", "loose": "2" }
+  }
+];
+
+// Enhanced color picker with predefined color schemes
+const colorSchemes = {
+  googleColors: [
+    "#4285F4", // Google Blue
+    "#DB4437", // Google Red
+    "#F4B400", // Google Yellow
+    "#0F9D58", // Google Green
+    "#4285F4", // Light Blue
+    "#DB4437", // Light Red 
+    "#F4B400", // Light Yellow
+    "#0F9D58"  // Light Green
+  ],
+  materialDesign: [
+    "#F44336", // Red
+    "#E91E63", // Pink
+    "#9C27B0", // Purple
+    "#673AB7", // Deep Purple
+    "#3F51B5", // Indigo
+    "#2196F3", // Blue
+    "#03A9F4", // Light Blue
+    "#00BCD4", // Cyan
+    "#009688", // Teal
+    "#4CAF50", // Green
+    "#8BC34A", // Light Green
+    "#CDDC39", // Lime
+    "#FFEB3B", // Yellow
+    "#FFC107", // Amber
+    "#FF9800", // Orange
+    "#FF5722"  // Deep Orange
+  ],
+  pastel: [
+    "#FFD7D7", // Pastel Red
+    "#FFB8B8", // Pastel Pink
+    "#FFEAC4", // Pastel Yellow
+    "#C4F0Cb", // Pastel Green
+    "#A9DEF9", // Pastel Blue
+    "#D4C4FB", // Pastel Purple
+    "#F8E1F4", // Pastel Lavender
+    "#F0F0F0"  // Light Gray
+  ],
+  grayscale: [
+    "#FFFFFF", // White
+    "#F5F5F5", // Light Gray
+    "#E0E0E0", // Lighter Gray
+    "#9E9E9E", // Gray
+    "#616161", // Darker Gray
+    "#424242", // Very Dark Gray
+    "#212121", // Almost Black
+    "#000000"  // Black
+  ]
+};
+
+// Enhanced color picker component
+function createEnhancedColorPicker(property, currentValue) {
+  return `
+<div class="enhanced-color-picker">
+  <div class="color-input">
+    <input type="color" data-property="${property.name}" value="${currentValue || property.default}">
+    <input type="text" class="color-text" data-property-link="${property.name}" value="${currentValue || property.default}">
+  </div>
+  
+  <div class="color-schemes">
+    ${Object.entries(colorSchemes).map(([schemeName, colors]) => `
+      <div class="color-scheme">
+        <div class="scheme-label">${formatSchemeName(schemeName)}</div>
+        <div class="scheme-colors">
+          ${colors.map(color => `
+            <div class="scheme-color" style="background-color: ${color};" data-color="${color}" 
+                 onclick="selectSchemeColor('${property.name}', '${color}')"></div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  </div>
+</div>
+
+<script>
+  function selectSchemeColor(propertyName, color) {
+    const colorInput = document.querySelector('input[data-property="' + propertyName + '"]');
+    const textInput = document.querySelector('input[data-property-link="' + propertyName + '"]');
+    
+    if (colorInput && textInput) {
+      colorInput.value = color;
+      textInput.value = color;
+      
+      // Trigger change event
+      const event = new Event('change', { bubbles: true });
+      colorInput.dispatchEvent(event);
+    }
+  }
+</script>
+  `;
+}
+
+// Helper function to format scheme name
+function formatSchemeName(name) {
+  return name
+    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+    .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+}
+
+// Enhanced Properties Panel with Tabs and Advanced Options
+function createEnhancedPropertiesPanel(element) {
+  const elementId = element.getAttribute('data-element-id');
+  const category = element.getAttribute('data-category');
+  const elementDef = findUIElementDefinition(elementId, category);
+  const properties = JSON.parse(element.dataset.properties || '{}');
+  
+  // Create tabbed interface for properties
+  let html = `
+<div class="properties-tabs">
+  <div class="property-tab active" data-tab="basic">Basic</div>
+  <div class="property-tab" data-tab="style">Style</div>
+  <div class="property-tab" data-tab="advanced">Advanced</div>
+  ${category === 'conditional' ? '<div class="property-tab" data-tab="conditions">Conditions</div>' : ''}
+  ${hasEventProperties(elementDef) ? '<div class="property-tab" data-tab="events">Events</div>' : ''}
+</div>
+
+<div class="properties-tab-content">
+  <!-- Basic Properties Tab -->
+  <div class="tab-pane active" data-tab-content="basic">
+    <div class="property-group">
+      <div class="property-group-title">Position & Size</div>
+      
+      <div class="property-row">
+        <div class="property-label">Width</div>
+        <div class="property-value">
+          <input type="number" data-property="width" value="${parseInt(element.style.width)}" min="10">
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Height</div>
+        <div class="property-value">
+          <input type="number" data-property="height" value="${parseInt(element.style.height)}" min="10">
+        </div>
+      </div>
+    </div>
+    
+    <div class="property-group">
+      <div class="property-group-title">Element Properties</div>
+      ${createBasicPropertiesHTML(elementDef, properties)}
+    </div>
+  </div>
+  
+  <!-- Style Properties Tab -->
+  <div class="tab-pane" data-tab-content="style">
+    <div class="property-group">
+      <div class="property-group-title">Appearance</div>
+      
+      <div class="property-row">
+        <div class="property-label">Background</div>
+        <div class="property-value">
+          ${createEnhancedColorPicker({name: "backgroundColor", default: "#ffffff"}, properties.backgroundColor)}
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Text Color</div>
+        <div class="property-value">
+          ${createEnhancedColorPicker({name: "color", default: "#202124"}, properties.color)}
+        </div>
+      </div>
+      
+      ${createTextFormattingPropertiesHTML(properties)}
+      
+      <div class="property-row">
+        <div class="property-label">Border</div>
+        <div class="property-value">
+          <div class="border-controls">
+            <input type="number" data-property="borderWidth" value="${properties.borderWidth || 0}" min="0" max="10" step="1" style="width: 50px">
+            <select data-property="borderStyle">
+              ${['none', 'solid', 'dashed', 'dotted', 'double'].map(style => 
+                `<option value="${style}" ${(properties.borderStyle || 'none') === style ? 'selected' : ''}>${style}</option>`
+              ).join('')}
+            </select>
+            <input type="color" data-property="borderColor" value="${properties.borderColor || '#cccccc'}">
+          </div>
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Border Radius</div>
+        <div class="property-value">
+          <input type="number" data-property="borderRadius" value="${properties.borderRadius || 0}" min="0" max="50">
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Shadow</div>
+        <div class="property-value">
+          <select data-property="boxShadow">
+            <option value="none" ${!properties.boxShadow || properties.boxShadow === 'none' ? 'selected' : ''}>None</option>
+            <option value="light" ${properties.boxShadow === 'light' ? 'selected' : ''}>Light</option>
+            <option value="medium" ${properties.boxShadow === 'medium' ? 'selected' : ''}>Medium</option>
+            <option value="heavy" ${properties.boxShadow === 'heavy' ? 'selected' : ''}>Heavy</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Advanced Properties Tab -->
+  <div class="tab-pane" data-tab-content="advanced">
+    <div class="property-group">
+      <div class="property-group-title">Identification</div>
+      
+      <div class="property-row">
+        <div class="property-label">ID</div>
+        <div class="property-value">
+          <input type="text" data-property="id" value="${properties.id || generateElementId(elementDef)}">
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Classes</div>
+        <div class="property-value">
+          <input type="text" data-property="className" value="${properties.className || ''}">
+        </div>
+      </div>
+    </div>
+    
+    <div class="property-group">
+      <div class="property-group-title">Layout</div>
+      
+      <div class="property-row">
+        <div class="property-label">Display</div>
+        <div class="property-value">
+          <select data-property="display">
+            ${['block', 'inline-block', 'flex', 'grid', 'none'].map(display => 
+              `<option value="${display}" ${(properties.display || 'block') === display ? 'selected' : ''}>${display}</option>`
+            ).join('')}
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row ${(properties.display || 'block') !== 'flex' ? 'hidden' : ''}">
+        <div class="property-label">Flex Direction</div>
+        <div class="property-value">
+          <select data-property="flexDirection">
+            ${['row', 'column', 'row-reverse', 'column-reverse'].map(dir => 
+              `<option value="${dir}" ${(properties.flexDirection || 'row') === dir ? 'selected' : ''}>${dir}</option>`
+            ).join('')}
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Padding</div>
+        <div class="property-value">
+          <input type="text" data-property="padding" value="${properties.padding || '0px'}" placeholder="e.g. 10px or 10px 20px">
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Margin</div>
+        <div class="property-value">
+          <input type="text" data-property="margin" value="${properties.margin || '0px'}" placeholder="e.g. 10px or 10px 20px">
+        </div>
+      </div>
+    </div>
+    
+    <div class="property-group">
+      <div class="property-group-title">Data</div>
+      
+      <div class="property-row">
+        <div class="property-label">Data Source</div>
+        <div class="property-value">
+          <select data-property="dataSource">
+            <option value="none" ${!properties.dataSource || properties.dataSource === 'none' ? 'selected' : ''}>None</option>
+            <option value="sheet" ${properties.dataSource === 'sheet' ? 'selected' : ''}>Google Sheet</option>
+            <option value="script" ${properties.dataSource === 'script' ? 'selected' : ''}>Script Function</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row ${!properties.dataSource || properties.dataSource === 'none' ? 'hidden' : ''}">
+        <div class="property-label">${properties.dataSource === 'sheet' ? 'Sheet Name' : 'Function'}</div>
+        <div class="property-value">
+          <input type="text" data-property="${properties.dataSource === 'sheet' ? 'sheetName' : 'scriptFunction'}" 
+                 value="${properties.dataSource === 'sheet' ? (properties.sheetName || '') : (properties.scriptFunction || '')}">
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  ${category === 'conditional' ? createConditionalPropertiesHTML(properties) : ''}
+  ${hasEventProperties(elementDef) ? createEventPropertiesHTML(elementDef, properties) : ''}
+</div>
+  `;
+  
+  return html;
+}
+
+// Create basic properties HTML based on element definition
+function createBasicPropertiesHTML(elementDef, properties) {
+  let html = '';
+  
+  // Filter out advanced properties
+  const basicProperties = elementDef.properties.filter(prop => 
+    !prop.advanced && !isStyleProperty(prop) && !isEventProperty(prop) && !isConditionalProperty(prop)
+  );
+  
+  basicProperties.forEach(prop => {
+    const value = properties[prop.name] !== undefined ? properties[prop.name] : prop.default;
+    let inputHtml = '';
+    
+    if (prop.type === 'text') {
+      inputHtml = `<input type="text" data-property="${prop.name}" value="${value}">`;
+    } else if (prop.type === 'textarea') {
+      inputHtml = `<textarea data-property="${prop.name}" rows="3">${value}</textarea>`;
+    } else if (prop.type === 'number') {
+      inputHtml = `<input type="number" data-property="${prop.name}" value="${value}" 
+                   ${prop.min !== undefined ? `min="${prop.min}"` : ''} 
+                   ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
+    } else if (prop.type === 'color') {
+      inputHtml = createEnhancedColorPicker(prop, value);
+    } else if (prop.type === 'boolean') {
+      inputHtml = `<select data-property="${prop.name}">
+        <option value="true" ${value ? 'selected' : ''}>Yes</option>
+        <option value="false" ${!value ? 'selected' : ''}>No</option>
+      </select>`;
+    } else if (prop.type === 'select') {
+      inputHtml = `<select data-property="${prop.name}">
+        ${prop.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+      </select>`;
+    }
+    
+    html += `
+      <div class="property-row">
+        <div class="property-label">${formatPropertyName(prop.name)}</div>
+        <div class="property-value">
+          ${inputHtml}
+        </div>
+        ${prop.help ? `<div class="property-help" title="${prop.help}">?</div>` : ''}
+      </div>`;
+  });
+  
+  return html;
+}
+
+// Create text formatting properties HTML
+function createTextFormattingPropertiesHTML(properties) {
+  let html = '';
+  
+  textFormattingProperties.forEach(prop => {
+    const value = properties[prop.name] !== undefined ? properties[prop.name] : prop.default;
+    let inputHtml = '';
+    
+    if (prop.type === 'select') {
+      inputHtml = `<select data-property="${prop.name}">
+        ${prop.options.map(opt => {
+          const optValue = prop.values ? prop.values[opt] : opt;
+          return `<option value="${optValue}" ${value === optValue ? 'selected' : ''}>${opt}</option>`;
+        }).join('')}
+      </select>`;
+    } else if (prop.type === 'number') {
+      inputHtml = `<input type="number" data-property="${prop.name}" value="${value}" 
+                   ${prop.min !== undefined ? `min="${prop.min}"` : ''} 
+                   ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
+    }
+    
+    html += `
+      <div class="property-row">
+        <div class="property-label">${formatPropertyName(prop.name)}</div>
+        <div class="property-value">
+          ${inputHtml}
+        </div>
+      </div>`;
+  });
+  
+  return html;
+}
+
+// Create conditional properties HTML
+function createConditionalPropertiesHTML(properties) {
+  return `
+<div class="tab-pane" data-tab-content="conditions">
+  <div class="property-group">
+    <div class="property-group-title">Condition Settings</div>
+    
+    <div class="property-row">
+      <div class="property-label">Condition Type</div>
+      <div class="property-value">
+        <select data-property="conditionType">
+          <option value="date" ${(properties.conditionType || 'date') === 'date' ? 'selected' : ''}>Date</option>
+          <option value="value" ${properties.conditionType === 'value' ? 'selected' : ''}>Value</option>
+          <option value="user" ${properties.conditionType === 'user' ? 'selected' : ''}>User</option>
+          <option value="custom" ${properties.conditionType === 'custom' ? 'selected' : ''}>Custom</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Date condition fields -->
+    <div class="condition-fields date-condition ${(properties.conditionType || 'date') !== 'date' ? 'hidden' : ''}">
+      <div class="property-row">
+        <div class="property-label">Date Condition</div>
+        <div class="property-value">
+          <select data-property="dateCondition">
+            <option value="equals" ${(properties.dateCondition || 'equals') === 'equals' ? 'selected' : ''}>Equals</option>
+            <option value="before" ${properties.dateCondition === 'before' ? 'selected' : ''}>Before</option>
+            <option value="after" ${properties.dateCondition === 'after' ? 'selected' : ''}>After</option>
+            <option value="withinDays" ${properties.dateCondition === 'withinDays' ? 'selected' : ''}>Within Days</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Target Date</div>
+        <div class="property-value">
+          <input type="date" data-property="targetDate" value="${properties.targetDate || new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+      
+      <div class="property-row ${(properties.dateCondition || 'equals') !== 'withinDays' ? 'hidden' : ''}">
+        <div class="property-label">Days Range</div>
+        <div class="property-value">
+          <input type="number" data-property="daysRange" value="${properties.daysRange || 7}" min="1">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Value condition fields -->
+    <div class="condition-fields value-condition ${properties.conditionType !== 'value' ? 'hidden' : ''}">
+      <div class="property-row">
+        <div class="property-label">Compare</div>
+        <div class="property-value">
+          <select data-property="valueComparison">
+            <option value="equals" ${(properties.valueComparison || 'equals') === 'equals' ? 'selected' : ''}>Equals</option>
+            <option value="notEquals" ${properties.valueComparison === 'notEquals' ? 'selected' : ''}>Not Equals</option>
+            <option value="greaterThan" ${properties.valueComparison === 'greaterThan' ? 'selected' : ''}>Greater Than</option>
+            <option value="lessThan" ${properties.valueComparison === 'lessThan' ? 'selected' : ''}>Less Than</option>
+            <option value="contains" ${properties.valueComparison === 'contains' ? 'selected' : ''}>Contains</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Value Source</div>
+        <div class="property-value">
+          <select data-property="valueSource">
+            <option value="fixed" ${(properties.valueSource || 'fixed') === 'fixed' ? 'selected' : ''}>Fixed Value</option>
+            <option value="element" ${properties.valueSource === 'element' ? 'selected' : ''}>UI Element</option>
+            <option value="sheet" ${properties.valueSource === 'sheet' ? 'selected' : ''}>Sheet Cell</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="property-row">
+        <div class="property-label">Value</div>
+        <div class="property-value">
+          <input type="text" data-property="conditionValue" value="${properties.conditionValue || ''}">
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="property-group">
+    <div class="property-group-title">Actions</div>
+    
+    <div class="property-row">
+      <div class="property-label">When True</div>
+      <div class="property-value">
+        <select data-property="trueAction">
+          <option value="show" ${(properties.trueAction || 'show') === 'show' ? 'selected' : ''}>Show Element</option>
+          <option value="hide" ${properties.trueAction === 'hide' ? 'selected' : ''}>Hide Element</option>
+          <option value="enable" ${properties.trueAction === 'enable' ? 'selected' : ''}>Enable Element</option>
+          <option value="disable" ${properties.trueAction === 'disable' ? 'selected' : ''}>Disable Element</option>
+          <option value="custom" ${properties.trueAction === 'custom' ? 'selected' : ''}>Custom Action</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="property-row ${(properties.trueAction || 'show') !== 'custom' ? 'hidden' : ''}">
+      <div class="property-label">Custom Action</div>
+      <div class="property-value">
+        <textarea data-property="customTrueAction" rows="3">${properties.customTrueAction || '// Custom action code'}</textarea>
+      </div>
+    </div>
+    
+    <div class="property-row">
+      <div class="property-label">When False</div>
+      <div class="property-value">
+        <select data-property="falseAction">
+          <option value="hide" ${(properties.falseAction || 'hide') === 'hide' ? 'selected' : ''}>Hide Element</option>
+          <option value="show" ${properties.falseAction === 'show' ? 'selected' : ''}>Show Element</option>
+          <option value="disable" ${properties.falseAction === 'disable' ? 'selected' : ''}>Disable Element</option>
+          <option value="enable" ${properties.falseAction === 'enable' ? 'selected' : ''}>Enable Element</option>
+          <option value="custom" ${properties.falseAction === 'custom' ? 'selected' : ''}>Custom Action</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="property-row ${(properties.falseAction || 'hide') !== 'custom' ? 'hidden' : ''}">
+      <div class="property-label">Custom Action</div>
+      <div class="property-value">
+        <textarea data-property="customFalseAction" rows="3">${properties.customFalseAction || '// Custom action code'}</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+  `;
+}
+
+// Create event properties HTML
+function createEventPropertiesHTML(elementDef, properties) {
+  return `
+<div class="tab-pane" data-tab-content="events">
+  <div class="property-group">
+    <div class="property-group-title">Event Handlers</div>
+    
+    <div class="property-row">
+      <div class="property-label">On Click</div>
+      <div class="property-value">
+        <select data-property="onClick">
+          <option value="none" ${!properties.onClick || properties.onClick === 'none' ? 'selected' : ''}>None</option>
+          <option value="navigate" ${properties.onClick === 'navigate' ? 'selected' : ''}>Navigate</option>
+          <option value="showElement" ${properties.onClick === 'showElement' ? 'selected' : ''}>Show Element</option>
+          <option value="hideElement" ${properties.onClick === 'hideElement' ? 'selected' : ''}>Hide Element</option>
+          <option value="toggleElement" ${properties.onClick === 'toggleElement' ? 'selected' : ''}>Toggle Element</option>
+          <option value="showDialog" ${properties.onClick === 'showDialog' ? 'selected' : ''}>Show Dialog</option>
+          <option value="runScript" ${properties.onClick === 'runScript' ? 'selected' : ''}>Run Script</option>
+          <option value="custom" ${properties.onClick === 'custom' ? 'selected' : ''}>Custom Code</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="property-row ${!properties.onClick || properties.onClick === 'none' ? 'hidden' : ''}">
+      <div class="property-label">Action Target</div>
+      <div class="property-value">
+        <input type="text" data-property="onClickTarget" value="${properties.onClickTarget || ''}">
+      </div>
+    </div>
+    
+    <div class="property-row ${properties.onClick !== 'custom' ? 'hidden' : ''}">
+      <div class="property-label">Custom Code</div>
+      <div class="property-value">
+        <textarea data-property="onClickCode" rows="3">${properties.onClickCode || '// Custom click handler'}</textarea>
+      </div>
+    </div>
+    
+    ${elementDef.supportsChangeEvent ? `
+    <div class="property-row">
+      <div class="property-label">On Change</div>
+      <div class="property-value">
+        <select data-property="onChange">
+          <option value="none" ${!properties.onChange || properties.onChange === 'none' ? 'selected' : ''}>None</option>
+          <option value="updateElement" ${properties.onChange === 'updateElement' ? 'selected' : ''}>Update Element</option>
+          <option value="validateInput" ${properties.onChange === 'validateInput' ? 'selected' : ''}>Validate Input</option>
+          <option value="submitForm" ${properties.onChange === 'submitForm' ? 'selected' : ''}>Submit Form</option>
+          <option value="runScript" ${properties.onChange === 'runScript' ? 'selected' : ''}>Run Script</option>
+          <option value="custom" ${properties.onChange === 'custom' ? 'selected' : ''}>Custom Code</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="property-row ${!properties.onChange || properties.onChange === 'none' ? 'hidden' : ''}">
+      <div class="property-label">Action Target</div>
+      <div class="property-value">
+        <input type="text" data-property="onChangeTarget" value="${properties.onChangeTarget || ''}">
+      </div>
+    </div>
+    
+    <div class="property-row ${properties.onChange !== 'custom' ? 'hidden' : ''}">
+      <div class="property-label">Custom Code</div>
+      <div class="property-value">
+        <textarea data-property="onChangeCode" rows="3">${properties.onChangeCode || '// Custom change handler'}</textarea>
+      </div>
+    </div>
+    ` : ''}
+    
+    <div class="property-row">
+      <div class="property-label">On Load</div>
+      <div class="property-value">
+        <select data-property="onLoad">
+          <option value="none" ${!properties.onLoad || properties.onLoad === 'none' ? 'selected' : ''}>None</option>
+          <option value="loadData" ${properties.onLoad === 'loadData' ? 'selected' : ''}>Load Data</option>
+          <option value="checkCondition" ${properties.onLoad === 'checkCondition' ? 'selected' : ''}>Check Condition</option>
+          <option value="runScript" ${properties.onLoad === 'runScript' ? 'selected' : ''}>Run Script</option>
+          <option value="custom" ${properties.onLoad === 'custom' ? 'selected' : ''}>Custom Code</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="property-row ${!properties.onLoad || properties.onLoad === 'none' ? 'hidden' : ''}">
+      <div class="property-label">Action Target</div>
+      <div class="property-value">
+        <input type="text" data-property="onLoadTarget" value="${properties.onLoadTarget || ''}">
+      </div>
+    </div>
+    
+    <div class="property-row ${properties.onLoad !== 'custom' ? 'hidden' : ''}">
+      <div class="property-label">Custom Code</div>
+      <div class="property-value">
+        <textarea data-property="onLoadCode" rows="3">${properties.onLoadCode || '// Custom load handler'}</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+  `;
+}
+
+// Helper functions
+function formatPropertyName(name) {
+  return name
+    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+    .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+}
+
+function isStyleProperty(prop) {
+  const styleProps = ['color', 'backgroundColor', 'fontFamily', 'fontSize', 'fontWeight', 
+                      'textAlign', 'borderRadius', 'borderColor', 'borderWidth', 'borderStyle',
+                      'margin', 'padding', 'boxShadow'];
+  return styleProps.includes(prop.name);
+}
+
+function isEventProperty(prop) {
+  return prop.name.startsWith('on') || prop.type === 'event';
+}
+
+function isConditionalProperty(prop) {
+  const conditionalProps = ['conditionType', 'dateCondition', 'targetDate', 'valueComparison',
+                           'trueAction', 'falseAction', 'customTrueAction', 'customFalseAction'];
+  return conditionalProps.includes(prop.name);
+}
+
+function hasEventProperties(elementDef) {
+  return elementDef.properties.some(prop => isEventProperty(prop)) || 
+         ['button', 'input'].includes(elementDef.id);
+}
+
+function generateElementId(elementDef) {
+  return elementDef.id + '-' + Math.floor(Math.random() * 10000);
+}
+
+// Initialize tab switching in properties panel
+function initPropertiesTabs() {
+  document.querySelectorAll('.property-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      // Get the tab content id
+      const tabContentId = this.getAttribute('data-tab');
+      
+      // Hide all tab panes
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Show the selected tab pane
+      document.querySelector(`.tab-pane[data-tab-content="${tabContentId}"]`).classList.add('active');
+      
+      // Update active tab
+      document.querySelectorAll('.property-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      this.classList.add('active');
+    });
+  });
+}
+
+// Add the HTML editor enhancements to the Visual Script Builder
+function enhanceHTMLEditor() {
+  // Add dynamic element categories to UI elements
+  Object.entries(dynamicElementCategories).forEach(([key, category]) => {
+    uiElementCategories[key] = category;
+  });
+  
+  // Add event handlers for properties panel tabs
+  document.addEventListener('DOMContentLoaded', function() {
+    initPropertiesTabs();
+    
+    // Show custom properties panel for selected elements
+    document.addEventListener('element-selected', function(e) {
+      if (e.detail && e.detail.element) {
+        const propertiesPanel = document.getElementById('propertiesPanel');
+        const propertiesContent = propertiesPanel.querySelector('.properties-content');
+        
+        // Use enhanced properties panel
+        propertiesContent.innerHTML = createEnhancedPropertiesPanel(e.detail.element);
+        
+        // Initialize tabs
+        initPropertiesTabs();
+        
+        // Show the panel
+        propertiesPanel.style.display = 'block';
+      }
+    });
+    
+    // Update conditional property visibility based on selections
+    document.body.addEventListener('change', function(e) {
+      const target = e.target;
+      
+      if (target.hasAttribute('data-property')) {
+        const property = target.getAttribute('data-property');
+        
+        // Handle condition type changes
+        if (property === 'conditionType') {
+          const conditionType = target.value;
+          
+          // Hide all condition fields
+          document.querySelectorAll('.condition-fields').forEach(field => {
+            field.classList.add('hidden');
+          });
+          
+          // Show the selected condition fields
+          const selectedFields = document.querySelector(`.${conditionType}-condition`);
+          if (selectedFields) {
+            selectedFields.classList.remove('hidden');
+          }
+        }
+        
+        // Handle date condition changes
+        if (property === 'dateCondition') {
+          const dateCondition = target.value;
+          const daysRangeRow = document.querySelector('.property-row:has([data-property="daysRange"])');
+          
+          if (daysRangeRow) {
+            if (dateCondition === 'withinDays') {
+              daysRangeRow.classList.remove('hidden');
+            } else {
+              daysRangeRow.classList.add('hidden');
+            }
+          }
+        }
+        
+        // Handle action type changes
+        if (property === 'trueAction' || property === 'falseAction' || 
+            property === 'onClick' || property === 'onChange' || property === 'onLoad') {
+          const actionType = target.value;
+          const customRow = document.querySelector(
+            `.property-row:has([data-property="custom${property.charAt(0).toUpperCase() + property.slice(1)}Action"]), 
+             .property-row:has([data-property="${property}Target"]), 
+             .property-row:has([data-property="${property}Code"])`
+          );
+          
+          if (customRow) {
+            if (actionType === 'custom' || (actionType !== 'none' && actionType !== 'custom')) {
+              customRow.classList.remove('hidden');
+            } else {
+              customRow.classList.add('hidden');
+            }
+          }
+        }
+      }
+    });
+  });
+}
+
+// Call this function to enhance the HTML editor
+enhanceHTMLEditor();
